@@ -48,7 +48,7 @@ func TestInit(t *testing.T) {
 				fStruct.Foo = v
 			},
 			getBaseFieldParentFoo: func() string {
-				return fStruct.BaseField._parentValue.Interface().(*testFieldStruct).Foo
+				return fStruct.BaseField._parentValue.Interface().(testFieldStruct).Foo
 			},
 		},
 		{
@@ -66,7 +66,7 @@ func TestInit(t *testing.T) {
 				fPtr2.Foo = v
 			},
 			getBaseFieldParentFoo: func() string {
-				return fPtr2.BaseField._parentValue.Interface().(*testFieldPtr).Foo
+				return fPtr2.BaseField._parentValue.Interface().(testFieldPtr).Foo
 			},
 		},
 	}
@@ -87,9 +87,7 @@ func TestInit(t *testing.T) {
 
 			_ = Init(test.targetType, nil)
 
-			if !assert.IsType(t, test.targetType, test.getBaseFieldParentValue().Interface()) {
-				return
-			}
+			assert.Equal(t, reflect.Struct, test.getBaseFieldParentValue().Kind())
 
 			test.setDirectFoo("newValue")
 			assert.Equal(t, "newValue", test.getBaseFieldParentFoo())
