@@ -29,7 +29,7 @@ tools:
     ]
 
 golang:test:
-- name: templatelibrarygo
+- name: rs
   env:
   - name: TEST_PROFILE_DIR
     value: build/test-profile

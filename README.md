@@ -1,11 +1,11 @@
-# Template Library Go
+# rs
 
-[![CI](https://github.com/arhat-dev/template-library-go/workflows/CI/badge.svg)](https://github.com/arhat-dev/template-library-go/actions?query=workflow%3ACI)
-[![PkgGoDev](https://pkg.go.dev/badge/arhat.dev/template-library-go)](https://pkg.go.dev/arhat.dev/template-library-go)
-[![GoReportCard](https://goreportcard.com/badge/arhat.dev/template-library-go)](https://goreportcard.com/report/arhat.dev/template-library-go)
-[![Coverage](https://badge.arhat.dev/sonar/coverage/arhat-dev_template-library-go?branch=master&token=dc9f9a66e2ab7de832aa91245ff5c466)](https://sonar.arhat.dev/dashboard?id=arhat-dev_template-library-go)
+[![CI](https://github.com/arhat-dev/rs/workflows/CI/badge.svg)](https://github.com/arhat-dev/rs/actions?query=workflow%3ACI)
+[![PkgGoDev](https://pkg.go.dev/badge/arhat.dev/rs)](https://pkg.go.dev/arhat.dev/rs)
+[![GoReportCard](https://goreportcard.com/badge/arhat.dev/rs)](https://goreportcard.com/report/arhat.dev/rs)
+[![Coverage](https://badge.arhat.dev/sonar/coverage/arhat-dev_rs?branch=master&token=563ff8cf318c9303285b4dd4eeb0c660)](https://sonar.arhat.dev/dashboard?id=arhat-dev_rs)
 
-Template repo for golang libraries
+`R`endering `S`uffix Support for yaml
 
 ## LICENSE
 
