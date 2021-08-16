@@ -23,61 +23,12 @@ type (
 	unresolvedFieldValue struct {
 		fieldName   string
 		fieldValue  reflect.Value
-		rawDataList []*alterInterface
+		rawDataList []*AnyObject
 		renderers   []string
 
 		isCatchOtherField bool
 	}
 )
-
-// alterInterface is a direct `interface{}` replacement for data unmarshaling
-// with no rendering suffix support
-type alterInterface struct {
-	mapData   map[string]*alterInterface
-	sliceData []*alterInterface
-
-	scalarData interface{}
-}
-
-func (f *alterInterface) Value() interface{} {
-	if f.mapData != nil {
-		return f.mapData
-	}
-
-	if f.sliceData != nil {
-		return f.sliceData
-	}
-
-	return f.scalarData
-}
-
-func (f *alterInterface) UnmarshalYAML(n *yaml.Node) error {
-	switch n.Kind {
-	case yaml.ScalarNode:
-		switch n.ShortTag() {
-		case "!!str":
-			f.scalarData = n.Value
-		case "!!binary":
-			f.scalarData = n.Value
-		default:
-			return n.Decode(&f.scalarData)
-		}
-
-		return nil
-	case yaml.MappingNode:
-		f.mapData = make(map[string]*alterInterface)
-		return n.Decode(&f.mapData)
-	case yaml.SequenceNode:
-		f.sliceData = make([]*alterInterface, 0)
-		return n.Decode(&f.sliceData)
-	default:
-		return fmt.Errorf("unexpected node tag %q", n.ShortTag())
-	}
-}
-
-func (f *alterInterface) MarshalYAML() (interface{}, error) {
-	return f.Value(), nil
-}
 
 type BaseField struct {
 	_initialized uint32
@@ -339,7 +290,7 @@ fieldLoop:
 		return fmt.Errorf("field: unsupported yaml tag %q when handling %s", n.Tag, pt.String())
 	}
 
-	m := make(map[string]*alterInterface)
+	m := make(map[string]*AnyObject)
 	err := n.Decode(&m)
 	if err != nil {
 		return fmt.Errorf("field: data unmarshal failed for %s: %w", pt.String(), err)
@@ -370,10 +321,12 @@ fieldLoop:
 				}
 
 				fSpec = catchOtherField
-				v = &alterInterface{
-					mapData: map[string]*alterInterface{
-						yamlKey: v,
-					},
+				v = &AnyObject{
+					mapData: Init(&mapData{
+						Data: map[string]*AnyObject{
+							yamlKey: v,
+						},
+					}, f.ifaceTypeHandler).(*mapData),
 				}
 			}
 
@@ -409,10 +362,12 @@ fieldLoop:
 			}
 
 			fSpec = catchOtherField
-			v = &alterInterface{
-				mapData: map[string]*alterInterface{
-					yamlKey: v,
-				},
+			v = &AnyObject{
+				mapData: Init(&mapData{
+					Data: map[string]*AnyObject{
+						yamlKey: v,
+					},
+				}, f.ifaceTypeHandler).(*mapData),
 			}
 		}
 
@@ -457,7 +412,7 @@ var (
 
 func (f *BaseField) unmarshal(
 	yamlKey string,
-	in *alterInterface,
+	in *AnyObject,
 	outVal reflect.Value,
 	keepOld bool,
 ) error {
@@ -505,7 +460,7 @@ func (f *BaseField) unmarshal(
 }
 
 // unmarshalRaw unmarshals interface{} type value to outVal
-func (f *BaseField) unmarshalRaw(in *alterInterface, outVal reflect.Value) error {
+func (f *BaseField) unmarshalRaw(in *AnyObject, outVal reflect.Value) error {
 	var out interface{}
 	if outVal.Kind() != reflect.Ptr {
 		out = outVal.Addr().Interface()
@@ -535,7 +490,7 @@ func (f *BaseField) unmarshalRaw(in *alterInterface, outVal reflect.Value) error
 // unmarshalInterface handles interface type creation
 func (f *BaseField) unmarshalInterface(
 	yamlKey string,
-	in *alterInterface,
+	in *AnyObject,
 	outVal reflect.Value,
 	keepOld bool,
 ) (bool, error) {
@@ -565,7 +520,7 @@ func (f *BaseField) unmarshalInterface(
 	return true, f.unmarshal(yamlKey, in, val, keepOld)
 }
 
-func (f *BaseField) unmarshalArray(yamlKey string, in *alterInterface, outVal reflect.Value) error {
+func (f *BaseField) unmarshalArray(yamlKey string, in *AnyObject, outVal reflect.Value) error {
 	if in.sliceData == nil && in.Value() != nil {
 		return fmt.Errorf("unexpected non array data for %q", outVal.String())
 	}
@@ -595,7 +550,7 @@ func (f *BaseField) unmarshalArray(yamlKey string, in *alterInterface, outVal re
 	return nil
 }
 
-func (f *BaseField) unmarshalSlice(yamlKey string, in *alterInterface, outVal reflect.Value, keepOld bool) error {
+func (f *BaseField) unmarshalSlice(yamlKey string, in *AnyObject, outVal reflect.Value, keepOld bool) error {
 	if in.sliceData == nil && in.Value() != nil {
 		return fmt.Errorf("unexpected non slice data for %q", outVal.String())
 	}
@@ -626,7 +581,7 @@ func (f *BaseField) unmarshalSlice(yamlKey string, in *alterInterface, outVal re
 	return nil
 }
 
-func (f *BaseField) unmarshalMap(yamlKey string, in *alterInterface, outVal reflect.Value, keepOld bool) error {
+func (f *BaseField) unmarshalMap(yamlKey string, in *AnyObject, outVal reflect.Value, keepOld bool) error {
 	if in.mapData == nil && in.Value() != nil {
 		return fmt.Errorf("unexpected non map value for %q", outVal.String())
 	}
@@ -645,7 +600,7 @@ func (f *BaseField) unmarshalMap(yamlKey string, in *alterInterface, outVal refl
 		}
 	}
 
-	for k, v := range in.mapData {
+	for k, v := range in.mapData.Data {
 		// since indexed map value is not addressable
 		// we have to keep the original data in BaseField cache
 

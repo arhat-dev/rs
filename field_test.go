@@ -62,7 +62,7 @@ func TestBaseField_UnmarshalYAML(t *testing.T) {
 						}: {
 							fieldName:  "Foo",
 							fieldValue: reflect.Value{},
-							rawDataList: []*alterInterface{
+							rawDataList: []*AnyObject{
 								{
 									scalarData: "echo bar",
 								},
@@ -91,10 +91,12 @@ func TestBaseField_UnmarshalYAML(t *testing.T) {
 						}: {
 							fieldName:  "Other",
 							fieldValue: reflect.Value{},
-							rawDataList: []*alterInterface{
+							rawDataList: []*AnyObject{
 								{
-									mapData: map[string]*alterInterface{
-										"other_field_1": {scalarData: "foo"},
+									mapData: &mapData{
+										Data: map[string]*AnyObject{
+											"other_field_1": {scalarData: "foo"},
+										},
 									},
 								},
 							},
@@ -107,10 +109,12 @@ func TestBaseField_UnmarshalYAML(t *testing.T) {
 						}: {
 							fieldName:  "Other",
 							fieldValue: reflect.Value{},
-							rawDataList: []*alterInterface{
+							rawDataList: []*AnyObject{
 								{
-									mapData: map[string]*alterInterface{
-										"other_field_2": {scalarData: "bar"},
+									mapData: &mapData{
+										Data: map[string]*AnyObject{
+											"other_field_2": {scalarData: "bar"},
+										},
 									},
 								},
 							},
@@ -139,6 +143,9 @@ func TestBaseField_UnmarshalYAML(t *testing.T) {
 			out._parentValue = reflect.Value{}
 			for k := range out.unresolvedFields {
 				out.unresolvedFields[k].fieldValue = reflect.Value{}
+				for _, rawData := range out.unresolvedFields[k].rawDataList {
+					unsetAnyObjectBaseField(rawData)
+				}
 			}
 
 			assert.EqualValues(t, test.expected, out)

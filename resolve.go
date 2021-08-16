@@ -2,6 +2,7 @@ package rs
 
 import (
 	"fmt"
+	"go/token"
 	"reflect"
 	"strings"
 	"sync/atomic"
@@ -30,7 +31,7 @@ func (f *BaseField) ResolveFields(rc RenderingHandler, depth int, fieldNames ...
 
 		for i := 1; i < f._parentValue.NumField(); i++ {
 			sf := parentStruct.Field(i)
-			if !isExported(sf.Name) {
+			if !token.IsExported(sf.Name) {
 				continue
 			}
 
@@ -175,7 +176,7 @@ func (f *BaseField) handleUnResolvedField(
 	for i, rawData := range v.rawDataList {
 		toResolve := rawData
 		if v.isCatchOtherField {
-			toResolve = rawData.mapData[key.yamlKey]
+			toResolve = rawData.mapData.Data[key.yamlKey]
 		}
 
 		var (
@@ -244,12 +245,12 @@ func (f *BaseField) handleUnResolvedField(
 				}
 			}
 
-			toResolve = &alterInterface{
+			toResolve = &AnyObject{
 				scalarData: resolvedValue,
 			}
 		}
 
-		tmp := &alterInterface{}
+		tmp := &AnyObject{}
 		switch {
 		case target.Kind() == reflect.String:
 			tmp.scalarData = string(resolvedValue)
@@ -295,11 +296,21 @@ func (f *BaseField) handleUnResolvedField(
 		}
 
 		if v.isCatchOtherField {
-			tmp = &alterInterface{
-				mapData: map[string]*alterInterface{
-					key.yamlKey: tmp,
-				},
+			tmp = &AnyObject{
+				mapData: Init(&mapData{
+					Data: map[string]*AnyObject{
+						key.yamlKey: tmp,
+					},
+				}, f.ifaceTypeHandler).(*mapData),
 			}
+		}
+
+		err = tmp.ResolveFields(rc, -1)
+		if err != nil {
+			return fmt.Errorf(
+				"failed to resolve resolved arbitrary data: %w",
+				err,
+			)
 		}
 
 		// TODO: currently we always keepOld when the field has tag
@@ -325,7 +336,7 @@ func (f *BaseField) addUnresolvedField(
 	fieldName string,
 	fieldValue reflect.Value,
 	isCatchOtherField bool,
-	rawData *alterInterface,
+	rawData *AnyObject,
 ) {
 	if f.unresolvedFields == nil {
 		f.unresolvedFields = make(map[unresolvedFieldKey]*unresolvedFieldValue)
@@ -353,7 +364,7 @@ func (f *BaseField) addUnresolvedField(
 	f.unresolvedFields[key] = &unresolvedFieldValue{
 		fieldName:   fieldName,
 		fieldValue:  fieldValue,
-		rawDataList: []*alterInterface{rawData},
+		rawDataList: []*AnyObject{rawData},
 		renderers:   strings.Split(suffix, "|"),
 
 		isCatchOtherField: isCatchOtherField,
