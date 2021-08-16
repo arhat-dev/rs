@@ -28,7 +28,7 @@ type PatchSpec struct {
 	// 		  merge: [foo]
 	//
 	// then the resolve value of foo will be [bar, foo]
-	Value *alterInterface `yaml:"value"`
+	Value *AnyObject `yaml:"value"`
 
 	// Merge additional data into Value
 	Merge []MergeSource `yaml:"merge,omitempty"`

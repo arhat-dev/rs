@@ -55,13 +55,13 @@ func TestAnyObject(t *testing.T) {
 			input: `[foo, bar]`,
 
 			expectedUnmarshaled: &AnyObject{
-				arrayData: []*AnyObject{
+				sliceData: []*AnyObject{
 					{scalarData: "foo"},
 					{scalarData: "bar"},
 				},
 			},
 			expectedResolved: &AnyObject{
-				arrayData: []*AnyObject{
+				sliceData: []*AnyObject{
 					{scalarData: "foo"},
 					{scalarData: "bar"},
 				},
@@ -94,16 +94,16 @@ func TestAnyObject(t *testing.T) {
 			input: `[{foo@echo: [a,b]}, {bar@echo: [c,d]}]`,
 
 			expectedUnmarshaled: &AnyObject{
-				arrayData: []*AnyObject{
+				sliceData: []*AnyObject{
 					{mapData: &mapData{Data: nil}},
 					{mapData: &mapData{Data: nil}},
 				},
 			},
 			expectedResolved: &AnyObject{
-				arrayData: []*AnyObject{
+				sliceData: []*AnyObject{
 					{mapData: &mapData{Data: map[string]*AnyObject{
 						"foo": {
-							arrayData: []*AnyObject{
+							sliceData: []*AnyObject{
 								{scalarData: "a"},
 								{scalarData: "b"},
 							},
@@ -111,7 +111,7 @@ func TestAnyObject(t *testing.T) {
 					}}},
 					{mapData: &mapData{Data: map[string]*AnyObject{
 						"bar": {
-							arrayData: []*AnyObject{
+							sliceData: []*AnyObject{
 								{scalarData: "c"},
 								{scalarData: "d"},
 							},
@@ -178,8 +178,8 @@ func unsetAnyObjectBaseField(obj *AnyObject) {
 		}
 	}
 
-	if obj.arrayData != nil {
-		for _, v := range obj.arrayData {
+	if obj.sliceData != nil {
+		for _, v := range obj.sliceData {
 			unsetAnyObjectBaseField(v)
 		}
 	}
