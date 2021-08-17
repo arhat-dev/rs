@@ -30,7 +30,8 @@ func (f *BaseField) ResolveFields(rc RenderingHandler, depth int, fieldNames ...
 
 		for i := 1; i < f._parentValue.NumField(); i++ {
 			sf := parentStruct.Field(i)
-			if !isExported(sf.Name) {
+			if len(sf.PkgPath) != 0 {
+				// not exported
 				continue
 			}
 
