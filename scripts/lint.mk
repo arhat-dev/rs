@@ -12,7 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-RUN_LINTER := docker run -t --rm -v "$(shell pwd):$(shell pwd)" -w "$(shell pwd)"
+DOCKER_CLI ?= docker
+RUN_LINTER := ${DOCKER_CLI} run -it --rm -v "$(shell pwd):$(shell pwd)" -w "$(shell pwd)"
 
 lint.file:
 	${RUN_LINTER} ghcr.io/arhat-dev/editorconfig-checker:2.3 \
