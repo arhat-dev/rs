@@ -506,7 +506,12 @@ func (f *BaseField) unmarshal(
 
 			return f.unmarshalRaw(in, outVal)
 		default:
-			outVal.Set(reflect.ValueOf(in.Value()))
+			val := reflect.ValueOf(in.Value())
+			if err := checkAssignable(yamlKey, val, outVal); err != nil {
+				return err
+			}
+
+			outVal.Set(val)
 		}
 		return nil
 	}
@@ -569,6 +574,10 @@ func (f *BaseField) unmarshalInterface(
 	}
 
 	val := reflect.ValueOf(fVal)
+	if err := checkAssignable(yamlKey, val, outVal); err != nil {
+		return true, err
+	}
+
 	if outVal.CanSet() {
 		outVal.Set(val)
 	} else {
@@ -643,6 +652,10 @@ func (f *BaseField) unmarshalSlice(yamlKey string, in *alterInterface, outVal re
 		}
 	}
 
+	if err := checkAssignable(yamlKey, sliceVal, outVal); err != nil {
+		return err
+	}
+
 	if outVal.IsZero() || !keepOld {
 		outVal.Set(sliceVal)
 	} else {
@@ -710,6 +723,17 @@ func (f *BaseField) unmarshalMap(yamlKey string, in *alterInterface, outVal refl
 		}
 
 		outVal.SetMapIndex(reflect.ValueOf(k), val.Elem())
+	}
+
+	return nil
+}
+
+func checkAssignable(yamlKey string, in, out reflect.Value) error {
+	if !in.Type().AssignableTo(out.Type()) {
+		return fmt.Errorf(
+			"unexpected value of yaml field %s: want %s, got %s",
+			yamlKey, out.Type().String(), in.Type().String(),
+		)
 	}
 
 	return nil
