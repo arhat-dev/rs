@@ -9,6 +9,14 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+func TestBaseField_Inherit(t *testing.T) {
+	a := &BaseField{}
+	b := &BaseField{}
+
+	// TODO: add tests
+	assert.NoError(t, a.Inherit(b))
+}
+
 var _ RenderingHandler = (*testRenderingHandler)(nil)
 
 type testRenderingHandler struct{}
