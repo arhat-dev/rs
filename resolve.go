@@ -227,12 +227,15 @@ func (f *BaseField) handleUnResolvedField(
 				toResolve = patchSpec.Value
 			}
 
-			resolvedValue, err = rc.RenderYaml(renderer, toResolve.Value())
-			if err != nil {
-				return fmt.Errorf(
-					"field: failed to render value of %s.%s: %w",
-					structName, fieldName, err,
-				)
+			// toResolve can only be nil when patch value is not set
+			if toResolve != nil {
+				resolvedValue, err = rc.RenderYaml(renderer, toResolve.Value())
+				if err != nil {
+					return fmt.Errorf(
+						"field: failed to render value of %s.%s: %w",
+						structName, fieldName, err,
+					)
+				}
 			}
 
 			if patchSpec != nil {
@@ -245,6 +248,7 @@ func (f *BaseField) handleUnResolvedField(
 				}
 			}
 
+			// prepare for next renderer
 			toResolve = &alterInterface{
 				scalarData: resolvedValue,
 			}
@@ -263,15 +267,17 @@ func (f *BaseField) handleUnResolvedField(
 		if err != nil {
 			switch {
 			case target.Type() == rawInterfaceType:
+				// no idea what type is expected, keep it raw
 				tmp.scalarData = string(resolvedValue)
 			default:
 				return fmt.Errorf(
-					"field: failed to unmarshal resolved value %q to interface: %w",
+					"field: failed to unmarshal resolved value %q: %w",
 					resolvedValue, err,
 				)
 			}
 		} else {
 			// sometimes go-yaml will parse the input as string when it is not yaml
+			// in that case will leave result malformed
 			//
 			// revert that change by checking and resetting scalarData to resolvedValue
 			switch tmp.scalarData.(type) {
