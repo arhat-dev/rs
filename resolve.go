@@ -187,7 +187,7 @@ func (f *BaseField) handleUnResolvedField(
 		for _, renderer := range v.renderers {
 			// a patch is implied when renderer has a `!` suffix
 
-			var patchSpec *PatchSpec
+			var patchSpec *renderingPatchSpec
 			if strings.HasSuffix(renderer, "!") {
 				renderer = renderer[:len(renderer)-1]
 
@@ -207,7 +207,7 @@ func (f *BaseField) handleUnResolvedField(
 					}
 				}
 
-				patchSpec = Init(&PatchSpec{}, f.ifaceTypeHandler).(*PatchSpec)
+				patchSpec = Init(&renderingPatchSpec{}, f.ifaceTypeHandler).(*renderingPatchSpec)
 				err = yaml.Unmarshal(patchSpecBytes, patchSpec)
 				if err != nil {
 					return fmt.Errorf(
