@@ -5,9 +5,8 @@ import (
 	"fmt"
 	"reflect"
 
-	"gopkg.in/yaml.v3"
-
 	jsonpatch "github.com/evanphx/json-patch/v5"
+	"gopkg.in/yaml.v3"
 )
 
 type MergeSource struct {

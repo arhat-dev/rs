@@ -15,31 +15,33 @@ func (f *BaseField) HasUnresolvedField() bool {
 
 func (f *BaseField) ResolveFields(rc RenderingHandler, depth int, fieldNames ...string) error {
 	if atomic.LoadUint32(&f._initialized) == 0 {
-		return fmt.Errorf("field resolve: struct not intialized with Init()")
+		return fmt.Errorf("rs: struct not intialized before resolving")
 	}
 
 	if depth == 0 {
 		return nil
 	}
 
-	parentStruct := f._parentValue.Type()
-	structName := parentStruct.String()
+	parentStructType := f._parentValue.Type()
 
 	if len(fieldNames) == 0 {
 		// resolve all
 
 		for i := 1; i < f._parentValue.NumField(); i++ {
-			sf := parentStruct.Field(i)
+			sf := parentStructType.Field(i)
 			if len(sf.PkgPath) != 0 {
 				// not exported
 				continue
 			}
 
 			err := f.resolveSingleField(
-				rc, depth, structName, sf.Name, f._parentValue.Field(i),
+				rc, depth, sf.Name, f._parentValue.Field(i),
 			)
 			if err != nil {
-				return err
+				return fmt.Errorf(
+					"rs: failed to resolve field %s.%s: %w",
+					parentStructType.String(), sf.Name, err,
+				)
 			}
 		}
 
@@ -49,12 +51,15 @@ func (f *BaseField) ResolveFields(rc RenderingHandler, depth int, fieldNames ...
 	for _, name := range fieldNames {
 		fv := f._parentValue.FieldByName(name)
 		if !fv.IsValid() {
-			return fmt.Errorf("no such field %q in struct %q", name, parentStruct.String())
+			return fmt.Errorf("rs: no such field %q in struct %q", name, parentStructType.String())
 		}
 
-		err := f.resolveSingleField(rc, depth, structName, name, fv)
+		err := f.resolveSingleField(rc, depth, name, fv)
 		if err != nil {
-			return err
+			return fmt.Errorf(
+				"rs: failed to resolve requested field %s.%s: %w",
+				parentStructType.String(), name, err,
+			)
 		}
 	}
 
@@ -64,23 +69,21 @@ func (f *BaseField) ResolveFields(rc RenderingHandler, depth int, fieldNames ...
 func (f *BaseField) resolveSingleField(
 	rc RenderingHandler,
 	depth int,
-
-	structName string, // to make error message helpful
-	fieldName string, // to make error message helpful
-
+	fieldName string,
 	targetField reflect.Value,
 ) error {
-	handled := false
+	keepOld := false
+
 	for k, v := range f.unresolvedFields {
 		if v.fieldName == fieldName {
 			err := f.handleUnResolvedField(
-				rc, depth, structName, fieldName, k, v, handled,
+				rc, depth, k, v, keepOld,
 			)
 			if err != nil {
 				return err
 			}
 
-			handled = true
+			keepOld = true
 		}
 	}
 
@@ -163,10 +166,6 @@ func tryResolve(rc RenderingHandler, targetField reflect.Value, depth int) error
 func (f *BaseField) handleUnResolvedField(
 	rc RenderingHandler,
 	depth int,
-
-	structName string, // to make error message helpful
-	fieldName string, // to make error message helpful
-
 	key unresolvedFieldKey,
 	v *unresolvedFieldValue,
 	keepOld bool,
@@ -191,36 +190,11 @@ func (f *BaseField) handleUnResolvedField(
 			if strings.HasSuffix(renderer, "!") {
 				renderer = renderer[:len(renderer)-1]
 
-				var patchSpecBytes []byte
-				switch t := toResolve.Value().(type) {
-				case string:
-					patchSpecBytes = []byte(t)
-				case []byte:
-					patchSpecBytes = t
-				default:
-					patchSpecBytes, err = yaml.Marshal(toResolve.Value())
-					if err != nil {
-						return fmt.Errorf(
-							"field: failed to marshal renderer data to patch spec bytes: %w",
-							err,
-						)
-					}
-				}
-
-				patchSpec = Init(&renderingPatchSpec{}, f.ifaceTypeHandler).(*renderingPatchSpec)
-				err = yaml.Unmarshal(patchSpecBytes, patchSpec)
+				patchSpec, err = f.resolvePatchSpec(rc, toResolve)
 				if err != nil {
 					return fmt.Errorf(
-						"field: failed to unmarshal patch spec\n\n%s\n\nfor renderer %q of %s.%s: %w",
-						string(patchSpecBytes), renderer, structName, fieldName, err,
-					)
-				}
-
-				err = patchSpec.ResolveFields(rc, -1)
-				if err != nil {
-					return fmt.Errorf(
-						"field: failed to resolve patch spec\n\n%s\n\nfor renderer %q of %s.%s: %w",
-						string(patchSpecBytes), renderer, structName, fieldName, err,
+						"failed to resolve patch spec for renderer %q: %w",
+						renderer, err,
 					)
 				}
 
@@ -232,8 +206,8 @@ func (f *BaseField) handleUnResolvedField(
 				resolvedValue, err = rc.RenderYaml(renderer, toResolve.Value())
 				if err != nil {
 					return fmt.Errorf(
-						"field: failed to render value of %s.%s: %w",
-						structName, fieldName, err,
+						"renderer %q failed to render value: %w",
+						renderer, err,
 					)
 				}
 			}
@@ -242,8 +216,8 @@ func (f *BaseField) handleUnResolvedField(
 				resolvedValue, err = patchSpec.ApplyTo(resolvedValue)
 				if err != nil {
 					return fmt.Errorf(
-						"field: failed to apply patches to %s.%s: %w",
-						structName, fieldName, err,
+						"failed to apply patches: %w",
+						err,
 					)
 				}
 			}
@@ -270,8 +244,9 @@ func (f *BaseField) handleUnResolvedField(
 				// no idea what type is expected, keep it raw
 				tmp.scalarData = string(resolvedValue)
 			default:
+				// rare case
 				return fmt.Errorf(
-					"field: failed to unmarshal resolved value %q: %w",
+					"unexpected value, not string, bytes or valid yaml %q: %w",
 					resolvedValue, err,
 				)
 			}
@@ -316,11 +291,59 @@ func (f *BaseField) handleUnResolvedField(
 		actualKeepOld := keepOld || v.isCatchOtherField || i != 0
 		err = f.unmarshal(key.yamlKey, tmp, target, actualKeepOld)
 		if err != nil {
-			return fmt.Errorf("field: failed to unmarshal resolved value to %T: %w", tmp.Value(), err)
+			return fmt.Errorf(
+				"failed to unmarshal resolved value to field: %w",
+				err,
+			)
 		}
 	}
 
 	return tryResolve(rc, target, depth-1)
+}
+
+// resolve user provided data as patch spec
+func (f *BaseField) resolvePatchSpec(
+	rc RenderingHandler,
+	toResolve *alterInterface,
+) (
+	patchSpec *renderingPatchSpec,
+	err error,
+) {
+	var patchSpecBytes []byte
+	switch t := toResolve.Value().(type) {
+	case string:
+		patchSpecBytes = []byte(t)
+	case []byte:
+		patchSpecBytes = t
+	default:
+		// TODO: convert toResolve to patchSpec directly
+		patchSpecBytes, err = yaml.Marshal(toResolve.Value())
+		if err != nil {
+			return nil, fmt.Errorf(
+				"failed to marshal renderer data to bytes for resolving patch spec: %w",
+				err,
+			)
+		}
+	}
+
+	patchSpec = Init(&renderingPatchSpec{}, f.ifaceTypeHandler).(*renderingPatchSpec)
+	err = yaml.Unmarshal(patchSpecBytes, patchSpec)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"failed to unmarshal patch spec %q: %w",
+			string(patchSpecBytes), err,
+		)
+	}
+
+	err = patchSpec.ResolveFields(rc, -1)
+	if err != nil {
+		return nil, fmt.Errorf(
+			"failed to resolve patch spec %q: %w",
+			string(patchSpecBytes), err,
+		)
+	}
+
+	return patchSpec, nil
 }
 
 func (f *BaseField) addUnresolvedField(
