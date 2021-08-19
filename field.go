@@ -220,7 +220,7 @@ fieldLoop:
 		fieldValue := f._parentValue.Field(i)
 
 		// initialize struct fields accepted by Init(), in case being used later
-		tryInit(fieldValue, f.ifaceTypeHandler)
+		_ = tryInit(fieldValue, f.ifaceTypeHandler)
 
 		yTags := strings.Split(sf.Tag.Get("yaml"), ",")
 
@@ -519,17 +519,7 @@ func (f *BaseField) unmarshal(
 
 // unmarshalRaw unmarshals interface{} type value to outVal
 func (f *BaseField) unmarshalRaw(in *alterInterface, outVal reflect.Value) error {
-	var out interface{}
-	if outVal.Kind() != reflect.Ptr {
-		out = outVal.Addr().Interface()
-	} else {
-		out = outVal.Interface()
-	}
-
-	fVal, canCallInit := out.(Field)
-	if canCallInit {
-		_ = Init(fVal, f.ifaceTypeHandler)
-	}
+	_ = tryInit(outVal, f.ifaceTypeHandler)
 
 	dataBytes, err := yaml.Marshal(in)
 	if err != nil {
@@ -539,12 +529,18 @@ func (f *BaseField) unmarshalRaw(in *alterInterface, outVal reflect.Value) error
 		)
 	}
 
+	var out interface{}
+	if outVal.Kind() != reflect.Ptr {
+		out = outVal.Addr().Interface()
+	} else {
+		out = outVal.Interface()
+	}
+
 	err = yaml.Unmarshal(dataBytes, out)
 	if err != nil {
 		return err
 	}
 
-	_ = tryInit(outVal, f.ifaceTypeHandler)
 	return nil
 }
 
@@ -574,6 +570,8 @@ func (f *BaseField) unmarshalInterface(
 	}
 
 	val := reflect.ValueOf(fVal)
+	_ = tryInit(val, f.ifaceTypeHandler)
+
 	if err := checkAssignable(yamlKey, val, outVal); err != nil {
 		return true, err
 	}
@@ -607,6 +605,8 @@ func (f *BaseField) unmarshalArray(yamlKey string, in *alterInterface, outVal re
 	for i := 0; i < size; i++ {
 		itemVal := outVal.Index(i)
 
+		_ = tryInit(itemVal, f.ifaceTypeHandler)
+
 		err := f.unmarshal(
 			yamlKey, in.sliceData[i], itemVal,
 			// always drop existing inner data
@@ -637,6 +637,8 @@ func (f *BaseField) unmarshalSlice(yamlKey string, in *alterInterface, outVal re
 
 	for i := 0; i < size; i++ {
 		itemVal := sliceVal.Index(i)
+
+		_ = tryInit(itemVal, f.ifaceTypeHandler)
 
 		err := f.unmarshal(
 			yamlKey, in.sliceData[i], itemVal,
@@ -701,20 +703,19 @@ func (f *BaseField) unmarshalMap(yamlKey string, in *alterInterface, outVal refl
 				val = cachedData
 			} else {
 				val = reflect.New(valType)
+				_ = tryInit(val, f.ifaceTypeHandler)
 				f.catchOtherCache[k] = val
 			}
 		} else {
 			val = reflect.New(valType)
+			_ = tryInit(val, f.ifaceTypeHandler)
 		}
 
 		err := f.unmarshal(
 			// use k rather than `yamlKey`
 			// because it can be the field catching other
 			// (field tag: `rs:"other"`)
-			k,
-			v,
-			val,
-			keepOld,
+			k, v, val, keepOld,
 		)
 		if err != nil {
 			return fmt.Errorf("failed to unmarshal map value %s for key %q: %w",
