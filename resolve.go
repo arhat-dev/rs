@@ -94,19 +94,19 @@ func (f *BaseField) resolveSingleField(
 func (f *BaseField) handleResolvedField(
 	rc RenderingHandler,
 	depth int,
-	targetField reflect.Value,
+	field reflect.Value,
 ) error {
 	if depth == 0 {
 		return nil
 	}
 
-	switch targetField.Kind() {
+	switch field.Kind() {
 	case reflect.Map:
-		if targetField.IsNil() {
+		if field.IsNil() {
 			return nil
 		}
 
-		iter := targetField.MapRange()
+		iter := field.MapRange()
 		for iter.Next() {
 			err := f.handleResolvedField(rc, depth-1, iter.Value())
 			if err != nil {
@@ -116,13 +116,13 @@ func (f *BaseField) handleResolvedField(
 	case reflect.Array:
 		fallthrough
 	case reflect.Slice:
-		if targetField.IsNil() {
+		if field.IsNil() {
 			// this is a resolved field, slice/array empty means no value
 			return nil
 		}
 
-		for i := 0; i < targetField.Len(); i++ {
-			tt := targetField.Index(i)
+		for i := 0; i < field.Len(); i++ {
+			tt := field.Index(i)
 			err := f.handleResolvedField(rc, depth-1, tt)
 			if err != nil {
 				return err
@@ -133,18 +133,19 @@ func (f *BaseField) handleResolvedField(
 	case reflect.Ptr:
 		fallthrough
 	case reflect.Interface:
-		if !targetField.IsValid() || targetField.IsZero() || targetField.IsNil() {
+		if !field.IsValid() || field.IsZero() || field.IsNil() {
 			return nil
 		}
+		// handled after switch
 	default:
 		// scalar types, no action required
 		return nil
 	}
 
-	return tryResolve(rc, targetField, depth)
+	return tryResolve(rc, depth, field)
 }
 
-func tryResolve(rc RenderingHandler, targetField reflect.Value, depth int) error {
+func tryResolve(rc RenderingHandler, depth int, targetField reflect.Value) error {
 	if targetField.CanInterface() {
 		fVal, canCallResolve := targetField.Interface().(Field)
 		if canCallResolve {
@@ -298,7 +299,7 @@ func (f *BaseField) handleUnResolvedField(
 		}
 	}
 
-	return tryResolve(rc, target, depth-1)
+	return tryResolve(rc, depth-1, target)
 }
 
 // resolve user provided data as patch spec
