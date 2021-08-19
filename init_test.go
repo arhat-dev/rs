@@ -14,9 +14,15 @@ type testFieldStruct struct {
 
 	Foo   string   `yaml:"foo"`
 	Other []string `rs:"other"`
+
+	NestedStruct struct {
+		BaseField
+
+		StringMap map[string]string `yaml:"string_map"`
+		Array     [5]interface{}    `yaml:"array"`
+	} `yaml:"nested_struct"`
 }
 
-// should always panic when passed to New()
 type testFieldPtr struct {
 	*BaseField
 
