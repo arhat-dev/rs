@@ -220,7 +220,9 @@ fieldLoop:
 		fieldValue := f._parentValue.Field(i)
 
 		// initialize struct fields accepted by Init(), in case being used later
-		_ = tryInit(fieldValue, f.ifaceTypeHandler)
+		// DO NOT USE tryInit, that will only init current field, which will cause
+		// error when user try to resolve data not unmarshaled from yaml
+		InitRecursively(fieldValue, f.ifaceTypeHandler)
 
 		yTags := strings.Split(sf.Tag.Get("yaml"), ",")
 
@@ -519,7 +521,7 @@ func (f *BaseField) unmarshal(
 
 // unmarshalRaw unmarshals interface{} type value to outVal
 func (f *BaseField) unmarshalRaw(in *alterInterface, outVal reflect.Value) error {
-	_ = tryInit(outVal, f.ifaceTypeHandler)
+	tryInit(outVal, f.ifaceTypeHandler)
 
 	dataBytes, err := yaml.Marshal(in)
 	if err != nil {
@@ -570,7 +572,6 @@ func (f *BaseField) unmarshalInterface(
 	}
 
 	val := reflect.ValueOf(fVal)
-	_ = tryInit(val, f.ifaceTypeHandler)
 
 	if err := checkAssignable(yamlKey, val, outVal); err != nil {
 		return true, err
@@ -605,8 +606,6 @@ func (f *BaseField) unmarshalArray(yamlKey string, in *alterInterface, outVal re
 	for i := 0; i < size; i++ {
 		itemVal := outVal.Index(i)
 
-		_ = tryInit(itemVal, f.ifaceTypeHandler)
-
 		err := f.unmarshal(
 			yamlKey, in.sliceData[i], itemVal,
 			// always drop existing inner data
@@ -637,8 +636,6 @@ func (f *BaseField) unmarshalSlice(yamlKey string, in *alterInterface, outVal re
 
 	for i := 0; i < size; i++ {
 		itemVal := sliceVal.Index(i)
-
-		_ = tryInit(itemVal, f.ifaceTypeHandler)
 
 		err := f.unmarshal(
 			yamlKey, in.sliceData[i], itemVal,
@@ -703,12 +700,10 @@ func (f *BaseField) unmarshalMap(yamlKey string, in *alterInterface, outVal refl
 				val = cachedData
 			} else {
 				val = reflect.New(valType)
-				_ = tryInit(val, f.ifaceTypeHandler)
 				f.catchOtherCache[k] = val
 			}
 		} else {
 			val = reflect.New(valType)
-			_ = tryInit(val, f.ifaceTypeHandler)
 		}
 
 		err := f.unmarshal(
