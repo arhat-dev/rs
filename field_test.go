@@ -134,6 +134,7 @@ func TestBaseField_UnmarshalYAML(t *testing.T) {
 		},
 		{
 			name: "nested+renderer",
+			// editorconfig-checker-disable
 			yaml: `---
 foo@a: echo bar
 nested_struct@b:
@@ -146,6 +147,7 @@ nested_struct@b:
   - "4"
   - '5'
 `,
+			// editorconfig-checker-enable
 			expected: &testFieldStruct{
 				BaseField: BaseField{
 					unresolvedFields: map[unresolvedFieldKey]*unresolvedFieldValue{
