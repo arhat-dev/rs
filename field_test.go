@@ -84,7 +84,7 @@ func TestBaseField_UnmarshalYAML(t *testing.T) {
 		},
 		{
 			name: "catchAll+renderer",
-			yaml: `{other_field_1@a: foo, other_field_2@b: bar }`,
+			yaml: `{ other_field_1@a: foo, other_field_2@b: bar }`,
 			expected: &testFieldStruct{
 				BaseField: BaseField{
 					catchOtherFields: map[string]struct{}{
@@ -132,6 +132,69 @@ func TestBaseField_UnmarshalYAML(t *testing.T) {
 				Other: nil,
 			},
 		},
+		{
+			name: "nested+renderer",
+			yaml: `---
+foo@a: echo bar
+nested_struct@b:
+  string_map:
+    c@d|e|f: e
+  array@f:
+  - "1"
+  - "2"
+  - "3"
+  - "4"
+  - '5'
+`,
+			expected: &testFieldStruct{
+				BaseField: BaseField{
+					unresolvedFields: map[unresolvedFieldKey]*unresolvedFieldValue{
+						{
+							yamlKey: "foo",
+							suffix:  "a",
+						}: {
+							fieldName:  "Foo",
+							fieldValue: reflect.Value{},
+							rawDataList: []*alterInterface{
+								{
+									scalarData: "echo bar",
+								},
+							},
+							renderers: []string{"a"},
+						},
+						{
+							yamlKey: "nested_struct",
+							suffix:  "b",
+						}: {
+							fieldName:  "NestedStruct",
+							fieldValue: reflect.Value{},
+							rawDataList: []*alterInterface{
+								{
+									mapData: map[string]*alterInterface{
+										"string_map": {
+											mapData: map[string]*alterInterface{
+												"c@d|e|f": {scalarData: "e"},
+											},
+										},
+										"array@f": {
+											sliceData: []*alterInterface{
+												{scalarData: "1"},
+												{scalarData: "2"},
+												{scalarData: "3"},
+												{scalarData: "4"},
+												{scalarData: "5"},
+											},
+										},
+									},
+								},
+							},
+							renderers: []string{"b"},
+						},
+					},
+				},
+				Foo: "",
+			},
+		},
 	}
 
 	for _, test := range tests {
@@ -147,6 +210,13 @@ func TestBaseField_UnmarshalYAML(t *testing.T) {
 			out._parentValue = reflect.Value{}
 			for k := range out.unresolvedFields {
 				out.unresolvedFields[k].fieldValue = reflect.Value{}
+			}
+
+			assert.EqualValues(t, 1, out.NestedStruct._initialized)
+			out.NestedStruct._initialized = 0
+			out.NestedStruct._parentValue = reflect.Value{}
+			for k := range out.NestedStruct.unresolvedFields {
+				out.NestedStruct.unresolvedFields[k].fieldValue = reflect.Value{}
 			}
 
 			assert.EqualValues(t, test.expected, out)
