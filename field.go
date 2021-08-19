@@ -480,6 +480,11 @@ func (f *BaseField) unmarshal(
 		outVal = outVal.Elem()
 	}
 
+	if in == nil {
+		outVal.Set(reflect.Zero(outVal.Type()))
+		return nil
+	}
+
 	switch kind := outVal.Kind(); kind {
 	case reflect.Array:
 		return f.unmarshalArray(yamlKey, in, outVal)
