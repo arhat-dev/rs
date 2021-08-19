@@ -12,8 +12,9 @@ var _ Field = (*testFieldStruct)(nil)
 type testFieldStruct struct {
 	BaseField
 
-	Foo   string   `yaml:"foo"`
-	Other []string `rs:"other"`
+	Foo    string   `yaml:"foo"`
+	FooPtr *string  `yaml:"foo_ptr"`
+	Other  []string `rs:"other"`
 
 	NestedStruct struct {
 		BaseField

@@ -69,6 +69,16 @@ func TestBaseField_UnmarshalYAML(t *testing.T) {
 			},
 		},
 		{
+			name: "basic ptr nil",
+			yaml: `foo_ptr: null`,
+			expected: &testFieldStruct{
+				BaseField: BaseField{
+					unresolvedFields: nil,
+				},
+				FooPtr: nil,
+			},
+		},
+		{
 			name: "basic+renderer",
 			yaml: `foo@a: echo bar`,
 			expected: &testFieldStruct{
