@@ -93,7 +93,7 @@ func createMergeValue(t *testing.T, i interface{}) []MergeSource {
 		return nil
 	}
 
-	var ret interface{}
+	ret := new(AnyObject)
 	if !assert.NoError(t, yaml.Unmarshal(data, &ret)) {
 		t.FailNow()
 		return nil
@@ -116,8 +116,8 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 	tests := []struct {
 		name string
 
-		spec  renderingPatchSpec
-		input string
+		spec     renderingPatchSpec
+		original string
 
 		expectErr bool
 		expected  interface{}
@@ -125,7 +125,7 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 		{
 			name:     "Valid Nop List Merge",
 			spec:     renderingPatchSpec{},
-			input:    `[a, b, c]`,
+			original: `[a, b, c]`,
 			expected: []string{"a", "b", "c"},
 		},
 		{
@@ -133,7 +133,7 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 			spec: renderingPatchSpec{
 				Merge: createMergeValue(t, []string{"a", "b", "c"}),
 			},
-			input:    ``,
+			original: ``,
 			expected: []string{"a", "b", "c"},
 		},
 		{
@@ -141,7 +141,7 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 			spec: renderingPatchSpec{
 				Merge: createMergeValue(t, "oops: not a list"),
 			},
-			input:     `[a, b, c]`,
+			original:  `[a, b, c]`,
 			expectErr: true,
 		},
 		{
@@ -149,7 +149,7 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 			spec: renderingPatchSpec{
 				Merge: createMergeValue(t, []string{"c", "d", "e", "f"}),
 			},
-			input: `[a, b, c]`,
+			original: `[a, b, c]`,
 			expected: []string{
 				"a", "b", "c",
 				"c", // expected dup
@@ -162,13 +162,13 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 				Merge:  createMergeValue(t, []string{"c", "d", "c", "f"}),
 				Unique: true,
 			},
-			input:    `[a, c, c]`,
+			original: `[a, c, c]`,
 			expected: []string{"a", "c", "d", "f"},
 		},
 		{
 			name:     "Valid Nop Map Merge",
 			spec:     renderingPatchSpec{},
-			input:    `foo: bar`,
+			original: `foo: bar`,
 			expected: map[string]string{"foo": "bar"},
 		},
 		{
@@ -178,7 +178,7 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 					"foo": "bar",
 				}),
 			},
-			input:    ``,
+			original: ``,
 			expected: map[string]string{"foo": "bar"},
 		},
 		{
@@ -188,7 +188,7 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 					"a": {"a"},
 				}),
 			},
-			input: `a: [b, c]`,
+			original: `a: [b, c]`,
 			expected: map[string][]string{
 				"a": {"a"},
 			},
@@ -201,7 +201,7 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 				}),
 				MapListAppend: true,
 			},
-			input: `a: [b, c]`,
+			original: `a: [b, c]`,
 			expected: map[string][]string{
 				"a": {"b", "c", "a"},
 			},
@@ -210,7 +210,10 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := test.spec.ApplyTo([]byte(test.input))
+			mergeData, err := yaml.Marshal(test.spec.Merge)
+			assert.NoError(t, err)
+
+			result, err := test.spec.ApplyTo([]byte(test.original), mergeData)
 			if test.expectErr {
 				assert.Error(t, err)
 				return
