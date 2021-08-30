@@ -189,23 +189,18 @@ func (f *BaseField) handleUnResolvedField(
 
 			var (
 				patchSpec              *renderingPatchSpec
-				resolvedPatchValueData []byte
 				resolvedPatchMergeData []byte
 			)
 			if strings.HasSuffix(renderer, "!") {
 				renderer = renderer[:len(renderer)-1]
 
-				patchSpec, resolvedPatchValueData,
-					resolvedPatchMergeData, err = f.resolvePatchSpec(rc, toResolve)
+				patchSpec, toResolve, resolvedPatchMergeData, err = f.resolvePatchSpec(rc, toResolve)
 				if err != nil {
 					return fmt.Errorf(
 						"failed to resolve patch spec for renderer %q: %w",
 						renderer, err,
 					)
 				}
-
-				// skip resolving patchSpec.Value since already resolved when resolvePatchSpec()
-				toResolve = nil
 			}
 
 			// toResolve can only be nil when patch value is not set
@@ -220,7 +215,7 @@ func (f *BaseField) handleUnResolvedField(
 			}
 
 			if patchSpec != nil {
-				resolvedValue, err = patchSpec.ApplyTo(resolvedPatchValueData, resolvedPatchMergeData)
+				resolvedValue, err = patchSpec.ApplyTo(resolvedValue, resolvedPatchMergeData)
 				if err != nil {
 					return fmt.Errorf(
 						"failed to apply patches: %w",
@@ -314,7 +309,7 @@ func (f *BaseField) resolvePatchSpec(
 	toResolve *alterInterface,
 ) (
 	patchSpec *renderingPatchSpec,
-	resolvedValueData []byte,
+	resolvedValueData *alterInterface,
 	resolvedMergeData []byte,
 	err error,
 ) {
@@ -352,16 +347,21 @@ func (f *BaseField) resolvePatchSpec(
 		)
 	}
 
-	if patchSpec.Value != nil {
-		resolvedValueData, err = yaml.Marshal(patchSpec.Value.Value())
-		if err != nil {
-			return nil, nil, nil, fmt.Errorf(
-				"failed to marshal resolved value data: %w",
-				err,
-			)
-		}
-	} else {
-		resolvedValueData = []byte("")
+	resolvedVal, err := yaml.Marshal(patchSpec.Value)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf(
+			"failed to marshal resolved value data: %w",
+			err,
+		)
+	}
+
+	resolvedValueData = new(alterInterface)
+	err = yaml.Unmarshal(resolvedVal, resolvedValueData)
+	if err != nil {
+		return nil, nil, nil, fmt.Errorf(
+			"failed to prepare resolvde value data: %w",
+			err,
+		)
 	}
 
 	resolvedMergeData, err = yaml.Marshal(patchSpec.Merge)
