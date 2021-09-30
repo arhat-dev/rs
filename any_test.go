@@ -129,7 +129,7 @@ func TestAnyObject(t *testing.T) {
 		},
 		{
 			name:  "Merging Non-nil",
-			input: `foo@echo!: { value: { bar: woo }, merge: [{ data: { woo: bar } }, { data: { foo: woo } }] }`,
+			input: `foo@echo!: { value: { bar: woo }, merge: [{ value: { woo: bar } }, { value: { foo: woo } }] }`,
 
 			expectedUnmarshaled: &AnyObject{
 				mapData: &mapData{
@@ -159,7 +159,7 @@ func TestAnyObject(t *testing.T) {
 		},
 		{
 			name:  "Merging nil",
-			input: `foo@echo!: { merge: [{ data: { woo: bar } }, { data: { foo: woo } }] }`,
+			input: `foo@echo!: { merge: [{ value: { woo: bar } }, { value: { foo: woo } }] }`,
 
 			expectedUnmarshaled: &AnyObject{
 				mapData: &mapData{

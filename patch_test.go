@@ -99,7 +99,7 @@ func createMergeValue(t *testing.T, i interface{}) []MergeSource {
 		return nil
 	}
 
-	return []MergeSource{{Data: ret}}
+	return []MergeSource{{Value: ret}}
 }
 
 func createExpectedYamlValue(t *testing.T, i interface{}) string {
@@ -210,10 +210,7 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			mergeData, err := yaml.Marshal(test.spec.Merge)
-			assert.NoError(t, err)
-
-			result, err := test.spec.ApplyTo([]byte(test.original), mergeData)
+			result, err := test.spec.ApplyTo([]byte(test.original))
 			if test.expectErr {
 				assert.Error(t, err)
 				return
