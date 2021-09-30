@@ -20,7 +20,7 @@ type resolvedMergeSource struct {
 }
 
 type renderingPatchSpec struct {
-	BaseField
+	BaseField `yaml:"-" json:"-"`
 
 	// Value for the renderer
 	//
