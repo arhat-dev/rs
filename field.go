@@ -519,8 +519,10 @@ func (f *BaseField) unmarshal(
 				// no way to know what value we can set
 				return fmt.Errorf("unexpected nil out value for yaml key %q", yamlKey)
 			case inKind == reflect.Invalid:
-				// val is zero value, reset outVal
-				outVal.Set(reflect.Zero(outVal.Type()))
+				// val is zero value, ignore
+
+				// TODO: shall we set zero value in this case?
+				// 		 outVal.Set(reflect.Zero(outVal.Type()))
 				return nil
 			case inKind == outKind:
 				// same kind means same scalar type
@@ -531,6 +533,7 @@ func (f *BaseField) unmarshal(
 				if err := checkAssignable(yamlKey, val, outVal); err != nil {
 					return err
 				}
+
 				outVal.Set(val)
 				return nil
 			}
