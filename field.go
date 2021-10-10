@@ -514,8 +514,15 @@ func (f *BaseField) unmarshal(
 			return f.unmarshalRaw(in, outVal)
 		default:
 			val := reflect.ValueOf(in.Value())
-			if err := checkAssignable(yamlKey, val, outVal); err != nil {
-				return err
+			switch inKind, outKind := val.Kind(), outVal.Kind(); {
+			case inKind == outKind:
+			default:
+				// val can be zero value
+				if !val.IsZero() {
+					if err := checkAssignable(yamlKey, val, outVal); err != nil {
+						return err
+					}
+				}
 			}
 
 			outVal.Set(val)
