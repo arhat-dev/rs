@@ -1,0 +1,8 @@
+foo@echo!:
+  value: {}
+  merge:
+  - value:
+      a: a
+---
+foo:
+  a: a

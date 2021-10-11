@@ -1,0 +1,4 @@
+foo@echo!:
+  value: a
+---
+foo: a

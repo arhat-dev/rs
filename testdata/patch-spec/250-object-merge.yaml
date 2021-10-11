@@ -1,0 +1,10 @@
+foo@echo!:
+  value:
+    a: a
+  merge:
+  - value:
+      b: b
+---
+foo:
+  a: a
+  b: b

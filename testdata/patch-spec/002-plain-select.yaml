@@ -1,0 +1,6 @@
+foo@echo!:
+  value: a
+  select: |-
+    . + "-b"
+---
+foo: a-b

@@ -1,0 +1,10 @@
+foo@echo!:
+  value@echo: [a]
+  merge:
+  - value@echo:
+    - b
+  - value@echo:
+    - c
+    - d
+---
+foo: [a, b, c, d]
