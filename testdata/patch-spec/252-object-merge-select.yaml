@@ -1,0 +1,14 @@
+foo@echo!:
+  value:
+    a: a
+  merge:
+  - value:
+      b: b
+    select: |-
+      { b: (.b + "-merge-selected") }
+  select: |-
+    { a: (.a + "+outer-selected"), b: (.b + "+outer-selected") }
+---
+foo:
+  a: a+outer-selected
+  b: b-merge-selected+outer-selected
