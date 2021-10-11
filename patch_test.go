@@ -231,7 +231,7 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 }
 
 func TestPatchSpec(t *testing.T) {
-	filepath.WalkDir("testdata/patch-spec", func(path string, d fs.DirEntry, err error) error {
+	filepath.WalkDir("testdata/patch-spec", func(path string, d fs.DirEntry, _ error) error {
 		if d.IsDir() {
 			return nil
 		}
