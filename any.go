@@ -12,20 +12,18 @@ var (
 	_ json.Marshaler = (*AnyObject)(nil)
 )
 
-type anyObjectMap map[string]*AnyObject
-
-type mapData struct {
+type AnyObjectMap struct {
 	BaseField `yaml:"-" json:"-"`
 
-	Data anyObjectMap `rs:"other"`
+	Data map[string]*AnyObject `rs:"other"`
 }
 
-func (md *mapData) MarshalYAML() (interface{}, error) { return md.Data, nil }
-func (md *mapData) MarshalJSON() ([]byte, error)      { return json.Marshal(md.Data) }
+func (md *AnyObjectMap) MarshalYAML() (interface{}, error) { return md.Data, nil }
+func (md *AnyObjectMap) MarshalJSON() ([]byte, error)      { return json.Marshal(md.Data) }
 
 // AnyObject is a `interface{}` equivalent with rendering suffix support
 type AnyObject struct {
-	mapData *mapData
+	mapData *AnyObjectMap
 
 	// TODO: currently there is no way to support rendering suffix
 	// 	     for array object
@@ -53,7 +51,7 @@ func (o *AnyObject) UnmarshalYAML(n *yaml.Node) error {
 	case yaml.SequenceNode:
 		return n.Decode(&o.sliceData)
 	case yaml.MappingNode:
-		o.mapData = Init(&mapData{}, nil).(*mapData)
+		o.mapData = Init(&AnyObjectMap{}, nil).(*AnyObjectMap)
 		return n.Decode(o.mapData)
 	default:
 		return n.Decode(&o.scalarData)

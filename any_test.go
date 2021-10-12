@@ -33,14 +33,14 @@ func TestAnyObject(t *testing.T) {
 			input: `foo: bar`,
 
 			expectedUnmarshaled: &AnyObject{
-				mapData: &mapData{
+				mapData: &AnyObjectMap{
 					Data: map[string]*AnyObject{
 						"foo": {scalarData: "bar"},
 					},
 				},
 			},
 			expectedResolved: &AnyObject{
-				mapData: &mapData{
+				mapData: &AnyObjectMap{
 					Data: map[string]*AnyObject{
 						"foo": {scalarData: "bar"},
 					},
@@ -73,12 +73,12 @@ func TestAnyObject(t *testing.T) {
 			input: `foo@echo: bar`,
 
 			expectedUnmarshaled: &AnyObject{
-				mapData: &mapData{
+				mapData: &AnyObjectMap{
 					Data: nil,
 				},
 			},
 			expectedResolved: &AnyObject{
-				mapData: &mapData{
+				mapData: &AnyObjectMap{
 					Data: map[string]*AnyObject{
 						"foo": {scalarData: "bar"},
 					},
@@ -94,13 +94,13 @@ func TestAnyObject(t *testing.T) {
 
 			expectedUnmarshaled: &AnyObject{
 				sliceData: []*AnyObject{
-					{mapData: &mapData{Data: nil}},
-					{mapData: &mapData{Data: nil}},
+					{mapData: &AnyObjectMap{Data: nil}},
+					{mapData: &AnyObjectMap{Data: nil}},
 				},
 			},
 			expectedResolved: &AnyObject{
 				sliceData: []*AnyObject{
-					{mapData: &mapData{Data: map[string]*AnyObject{
+					{mapData: &AnyObjectMap{Data: map[string]*AnyObject{
 						"foo": {
 							sliceData: []*AnyObject{
 								{scalarData: "a"},
@@ -108,7 +108,7 @@ func TestAnyObject(t *testing.T) {
 							},
 						},
 					}}},
-					{mapData: &mapData{Data: map[string]*AnyObject{
+					{mapData: &AnyObjectMap{Data: map[string]*AnyObject{
 						"bar": {
 							sliceData: []*AnyObject{
 								{scalarData: "c"},
@@ -132,14 +132,14 @@ func TestAnyObject(t *testing.T) {
 			input: `foo@echo!: { value: { bar: woo }, merge: [{ value: { woo: bar } }, { value: { foo: woo } }] }`,
 
 			expectedUnmarshaled: &AnyObject{
-				mapData: &mapData{
+				mapData: &AnyObjectMap{
 					Data: nil,
 				},
 			},
 			expectedResolved: &AnyObject{
-				mapData: &mapData{
+				mapData: &AnyObjectMap{
 					Data: map[string]*AnyObject{
-						"foo": {mapData: &mapData{
+						"foo": {mapData: &AnyObjectMap{
 							Data: map[string]*AnyObject{
 								"bar": {scalarData: "woo"},
 								"woo": {scalarData: "bar"},
@@ -162,14 +162,14 @@ func TestAnyObject(t *testing.T) {
 			input: `foo@echo!: { merge: [{ value: { woo: bar } }, { value: { foo: woo } }] }`,
 
 			expectedUnmarshaled: &AnyObject{
-				mapData: &mapData{
+				mapData: &AnyObjectMap{
 					Data: nil,
 				},
 			},
 			expectedResolved: &AnyObject{
-				mapData: &mapData{
+				mapData: &AnyObjectMap{
 					Data: map[string]*AnyObject{
-						"foo": {mapData: &mapData{
+						"foo": {mapData: &AnyObjectMap{
 							Data: map[string]*AnyObject{
 								"woo": {scalarData: "bar"},
 								"foo": {scalarData: "woo"},
