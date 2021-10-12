@@ -51,6 +51,22 @@ func (h *testRenderingHandler) RenderYaml(renderer string, data interface{}) (re
 }
 
 func TestBaseField_UnmarshalYAML(t *testing.T) {
+	type testFieldStruct struct {
+		BaseField
+
+		Str     string   `yaml:"str"`
+		StrPtr  *string  `yaml:"str_ptr"`
+		BoolPtr *bool    `yaml:"bool_ptr"`
+		Other   []string `rs:"other"`
+
+		NestedStruct struct {
+			BaseField
+
+			StringMap map[string]string `yaml:"string_map"`
+			Array     [5]interface{}    `yaml:"array"`
+		} `yaml:"nested_struct"`
+	}
+
 	tests := []struct {
 		name     string
 		yaml     string
@@ -58,45 +74,49 @@ func TestBaseField_UnmarshalYAML(t *testing.T) {
 	}{
 		{
 			name: "basic",
-			yaml: `foo: bar`,
+			yaml: `str: bar`,
 			expected: &testFieldStruct{
 				BaseField: BaseField{
 					unresolvedFields: nil,
 				},
-				Foo: "bar",
+				Str: "bar",
 			},
 		},
 		{
 			name: "basic nil",
-			yaml: `foo: null`,
+			yaml: `str: `,
 			expected: &testFieldStruct{
 				BaseField: BaseField{
 					unresolvedFields: nil,
 				},
-				Foo: "",
+				Str: "",
 			},
 		},
 		{
 			name: "basic ptr nil",
-			yaml: `foo_ptr: null`,
+			yaml: `
+str_ptr: null
+bool_ptr: null
+`,
 			expected: &testFieldStruct{
 				BaseField: BaseField{
 					unresolvedFields: nil,
 				},
-				FooPtr: nil,
+				StrPtr:  nil,
+				BoolPtr: nil,
 			},
 		},
 		{
 			name: "basic+renderer",
-			yaml: `foo@a: echo bar`,
+			yaml: `str@a: echo bar`,
 			expected: &testFieldStruct{
 				BaseField: BaseField{
 					unresolvedFields: map[unresolvedFieldKey]*unresolvedFieldValue{
 						{
-							yamlKey: "foo",
+							yamlKey: "str",
 							suffix:  "a",
 						}: {
-							fieldName:  "Foo",
+							fieldName:  "Str",
 							fieldValue: reflect.Value{},
 							rawDataList: []*alterInterface{
 								{
@@ -107,7 +127,7 @@ func TestBaseField_UnmarshalYAML(t *testing.T) {
 						},
 					},
 				},
-				Foo: "",
+				Str: "",
 			},
 		},
 		{
@@ -164,7 +184,7 @@ func TestBaseField_UnmarshalYAML(t *testing.T) {
 			name: "nested+renderer",
 			// editorconfig-checker-disable
 			yaml: `---
-foo@a: echo bar
+str@a: echo bar
 nested_struct@b:
   string_map:
     c@d|e|f: e
@@ -180,10 +200,10 @@ nested_struct@b:
 				BaseField: BaseField{
 					unresolvedFields: map[unresolvedFieldKey]*unresolvedFieldValue{
 						{
-							yamlKey: "foo",
+							yamlKey: "str",
 							suffix:  "a",
 						}: {
-							fieldName:  "Foo",
+							fieldName:  "Str",
 							fieldValue: reflect.Value{},
 							rawDataList: []*alterInterface{
 								{
@@ -222,7 +242,7 @@ nested_struct@b:
 						},
 					},
 				},
-				Foo: "",
+				Str: "",
 			},
 		},
 	}
