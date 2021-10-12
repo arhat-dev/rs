@@ -41,15 +41,14 @@ type alterInterface struct {
 }
 
 func (f *alterInterface) Value() interface{} {
-	if f.mapData != nil {
+	switch {
+	case f.mapData != nil:
 		return f.mapData
-	}
-
-	if f.sliceData != nil {
+	case f.sliceData != nil:
 		return f.sliceData
+	default:
+		return f.scalarData
 	}
-
-	return f.scalarData
 }
 
 func (f *alterInterface) UnmarshalYAML(n *yaml.Node) error {
@@ -76,9 +75,7 @@ func (f *alterInterface) UnmarshalYAML(n *yaml.Node) error {
 	}
 }
 
-func (f *alterInterface) MarshalYAML() (interface{}, error) {
-	return f.Value(), nil
-}
+func (f *alterInterface) MarshalYAML() (interface{}, error) { return f.Value(), nil }
 
 type BaseField struct {
 	_initialized uint32
