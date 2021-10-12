@@ -49,6 +49,8 @@ type renderingPatchSpec struct {
 	// this action happens after merge and patch
 	Select string `yaml:"select"`
 
+	// TODO: give following options proper name
+
 	// Unique to make sure elements in the sequence is unique
 	//
 	// only effective when Value is yaml sequence
