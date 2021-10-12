@@ -12,16 +12,7 @@ var _ Field = (*testFieldStruct)(nil)
 type testFieldStruct struct {
 	BaseField
 
-	Foo    string   `yaml:"foo"`
-	FooPtr *string  `yaml:"foo_ptr"`
-	Other  []string `rs:"other"`
-
-	NestedStruct struct {
-		BaseField
-
-		StringMap map[string]string `yaml:"string_map"`
-		Array     [5]interface{}    `yaml:"array"`
-	} `yaml:"nested_struct"`
+	Foo string `yaml:"foo"`
 }
 
 type testFieldPtr struct {
