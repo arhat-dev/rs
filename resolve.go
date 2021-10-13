@@ -443,34 +443,33 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (interface{}, error) {
 
 		nv := v.NormalizedValue()
 
-		var rawBytes []byte
+		var rawBytes *[]byte
 
 		switch vt := nv.(type) {
 		case string:
-			rawBytes = []byte(vt)
+			rb := []byte(vt)
+			rawBytes = &rb
 		case []byte:
-			rawBytes = vt
+			rawBytes = &vt
+		default:
+			return nv, nil
 		}
 
-		if rawBytes != nil {
-			var tmp interface{}
-			err := yaml.Unmarshal(rawBytes, &tmp)
-			if err != nil {
-				// couldn't unmarshal, return original value
-				return string(rawBytes), nil
-			}
-
-			switch tmp.(type) {
-			case string, []byte, nil:
-				// yaml.Unmarshal will do some transformation on plaintext value
-				// when it's not valid yaml, so return the original value
-				_ = tmp
-			default:
-				nv = tmp
-			}
+		var tmp interface{}
+		err := yaml.Unmarshal(*rawBytes, &tmp)
+		if err != nil {
+			// couldn't unmarshal, return original value
+			return string(*rawBytes), nil
 		}
 
-		return nv, nil
+		switch tmp.(type) {
+		case string, []byte, nil:
+			// yaml.Unmarshal will do some transformation on plaintext value
+			// when it's not valid yaml, so return the original value
+			return string(*rawBytes), nil
+		default:
+			return tmp, nil
+		}
 	case TypeHintStr:
 		if v.originalNode != nil && v.originalNode.Kind == yaml.ScalarNode {
 			return v.originalNode.Value, nil
