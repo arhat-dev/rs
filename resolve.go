@@ -189,17 +189,15 @@ func (f *BaseField) handleUnResolvedField(
 			// a patch is implied when the renderer has a `!` suffix
 			var patchSpec *renderingPatchSpec
 			if renderer.patchSpec {
-				var valueToPatch interface{}
-				patchSpec, valueToPatch, err = f.resolvePatchSpec(rc, toResolve.NormalizedValue())
+				patchSpec, toResolve, err = f.resolvePatchSpec(rc, toResolve.NormalizedValue())
 				if err != nil {
 					return fmt.Errorf(
 						"failed to resolve patch spec for renderer %q: %w",
 						renderer.name, err,
 					)
 				}
-
-				toResolve = &alterInterface{
-					scalarData: valueToPatch,
+				if toResolve == nil {
+					toResolve = &alterInterface{}
 				}
 			}
 
@@ -219,7 +217,7 @@ func (f *BaseField) handleUnResolvedField(
 
 			// apply hint after resolving (rendering)
 			hint := renderer.typeHint
-			resolvedValue, err = applyTypeHint(hint, toResolve)
+			toResolve, err = applyTypeHint(hint, toResolve)
 			if err != nil {
 				return fmt.Errorf(
 					"failed to ensure type hint %q on yaml key %q: %w",
@@ -228,23 +226,24 @@ func (f *BaseField) handleUnResolvedField(
 			}
 
 			if patchSpec != nil {
-				resolvedValue, err = patchSpec.ApplyTo(resolvedValue)
+				resolvedValue, err = patchSpec.ApplyTo(toResolve.NormalizedValue())
 				if err != nil {
 					return fmt.Errorf(
 						"failed to apply patches: %w",
 						err,
 					)
 				}
-			}
 
-			// prepare for next renderer
-			toResolve = &alterInterface{
-				scalarData: resolvedValue,
+				// prepare for next renderer
+				toResolve = &alterInterface{
+					scalarData: resolvedValue,
+				}
 			}
 		}
 
 		resolved := toResolve
 		if v.isCatchOtherField {
+			// wrap back for catch other filed
 			resolved = &alterInterface{
 				mapData: map[string]*alterInterface{
 					key.yamlKey: resolved,
@@ -275,7 +274,7 @@ func (f *BaseField) resolvePatchSpec(
 	toResolve interface{},
 ) (
 	patchSpec *renderingPatchSpec,
-	value interface{},
+	value *alterInterface,
 	err error,
 ) {
 	var patchSpecBytes []byte
@@ -312,7 +311,9 @@ func (f *BaseField) resolvePatchSpec(
 	}
 
 	if patchSpec.Value != nil {
-		value = patchSpec.Value.NormalizedValue()
+		value = &alterInterface{
+			scalarData: patchSpec.Value.NormalizedValue(),
+		}
 	}
 
 	return patchSpec, value, nil
@@ -382,52 +383,59 @@ func ParseTypeHint(h string) (TypeHint, error) {
 }
 
 // nolint:gocyclo
-func applyTypeHint(hint TypeHint, v *alterInterface) (interface{}, error) {
+func applyTypeHint(hint TypeHint, v *alterInterface) (*alterInterface, error) {
 	switch hint {
 	case TypeHintNone:
 		// no hint, use default behavior:
 		//  try to unmarshal value as yaml, return raw value if failed or result
 		//  is string or []byte
 
-		nv := v.NormalizedValue()
-
 		var rawBytes *[]byte
-
-		switch vt := nv.(type) {
+		switch vt := v.scalarData.(type) {
 		case string:
 			rb := []byte(vt)
 			rawBytes = &rb
 		case []byte:
 			rawBytes = &vt
 		default:
-			return nv, nil
+			return v, nil
 		}
 
-		var tmp interface{}
-		err := yaml.Unmarshal(*rawBytes, &tmp)
+		tmp := new(alterInterface)
+		err := yaml.Unmarshal(*rawBytes, tmp)
 		if err != nil {
 			// couldn't unmarshal, return original value
-			return string(*rawBytes), nil
+			return &alterInterface{
+				scalarData: string(*rawBytes),
+			}, nil
 		}
 
-		switch tmp.(type) {
+		switch tmp.NormalizedValue().(type) {
 		case string, []byte, nil:
 			// yaml.Unmarshal will do some transformation on plaintext value
 			// when it's not valid yaml, so return the original value
-			return string(*rawBytes), nil
+			return &alterInterface{
+				scalarData: string(*rawBytes),
+			}, nil
 		default:
 			return tmp, nil
 		}
 	case TypeHintStr:
 		if v.originalNode != nil && v.originalNode.Kind == yaml.ScalarNode {
-			return v.originalNode.Value, nil
+			return &alterInterface{
+				scalarData: v.originalNode.Value,
+			}, nil
 		}
 
 		switch vt := v.NormalizedValue().(type) {
 		case []byte:
-			return string(vt), nil
+			return &alterInterface{
+				scalarData: string(vt),
+			}, nil
 		case string:
-			return vt, nil
+			return &alterInterface{
+				scalarData: vt,
+			}, nil
 		default:
 			bytesV, err := yaml.Marshal(vt)
 			if err != nil {
@@ -436,18 +444,26 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (interface{}, error) {
 					vt,
 				)
 			}
-			return string(bytesV), nil
+			return &alterInterface{
+				scalarData: string(bytesV),
+			}, nil
 		}
 	case TypeHintBytes:
 		if v.originalNode != nil && v.originalNode.Kind == yaml.ScalarNode {
-			return []byte(v.originalNode.Value), nil
+			return &alterInterface{
+				scalarData: []byte(v.originalNode.Value),
+			}, nil
 		}
 
 		switch vt := v.NormalizedValue().(type) {
 		case []byte:
-			return vt, nil
+			return &alterInterface{
+				scalarData: vt,
+			}, nil
 		case string:
-			return []byte(vt), nil
+			return &alterInterface{
+				scalarData: []byte(vt),
+			}, nil
 		default:
 			bytesV, err := yaml.Marshal(vt)
 			if err != nil {
@@ -456,35 +472,36 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (interface{}, error) {
 					vt,
 				)
 			}
-			return bytesV, nil
+			return &alterInterface{
+				scalarData: bytesV,
+			}, nil
 		}
 	case TypeHintObjects:
-		nv := v.NormalizedValue()
-		switch vt := nv.(type) {
+		switch vt := v.scalarData.(type) {
 		case []byte:
-			var actualValue []interface{}
-			err := yaml.Unmarshal(vt, &actualValue)
+			ret := new(alterInterface)
+			err := yaml.Unmarshal(vt, &ret.sliceData)
 			if err != nil {
 				return nil, fmt.Errorf(
 					"failed to unmarshal bytes %q as object array: %w",
 					string(vt), err,
 				)
 			}
-			return actualValue, nil
+			return ret, nil
 		case string:
-			var actualValue []interface{}
-			err := yaml.Unmarshal([]byte(vt), &actualValue)
+			ret := new(alterInterface)
+			err := yaml.Unmarshal([]byte(vt), &ret.sliceData)
 			if err != nil {
 				return nil, fmt.Errorf(
 					"failed to unmarshal string %q as object array: %w",
 					vt, err,
 				)
 			}
-			return actualValue, nil
+			return ret, nil
 		default:
-			switch vk := reflect.ValueOf(nv).Kind(); vk {
+			switch vk := reflect.ValueOf(v.Value()).Kind(); vk {
 			case reflect.Array, reflect.Slice, reflect.Interface, reflect.Ptr:
-				return nv, nil
+				return v, nil
 			default:
 				return nil, fmt.Errorf(
 					"incompatible type %T as object array", vt,
@@ -492,32 +509,31 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (interface{}, error) {
 			}
 		}
 	case TypeHintObject:
-		nv := v.NormalizedValue()
-		switch vt := nv.(type) {
+		switch vt := v.scalarData.(type) {
 		case []byte:
-			var actualValue map[string]interface{}
-			err := yaml.Unmarshal(vt, &actualValue)
+			ret := new(alterInterface)
+			err := yaml.Unmarshal(vt, &ret.mapData)
 			if err != nil {
 				return nil, fmt.Errorf(
 					"failed to unmarshal bytes %q as map: %w",
 					string(vt), err,
 				)
 			}
-			return actualValue, nil
+			return ret, nil
 		case string:
-			var actualValue map[string]interface{}
-			err := yaml.Unmarshal([]byte(vt), &actualValue)
+			ret := new(alterInterface)
+			err := yaml.Unmarshal([]byte(vt), &ret.mapData)
 			if err != nil {
 				return nil, fmt.Errorf(
 					"failed to unmarshal string %q as map: %w",
 					vt, err,
 				)
 			}
-			return actualValue, nil
+			return ret, nil
 		default:
-			switch vk := reflect.ValueOf(nv).Kind(); vk {
+			switch vk := reflect.ValueOf(v.Value()).Kind(); vk {
 			case reflect.Map, reflect.Struct, reflect.Interface, reflect.Ptr:
-				return nv, nil
+				return v, nil
 			default:
 				return nil, fmt.Errorf(
 					"incompatible type %T as map", vt,
@@ -525,8 +541,7 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (interface{}, error) {
 			}
 		}
 	case TypeHintInt:
-		nv := v.NormalizedValue()
-		switch vt := nv.(type) {
+		switch vt := v.scalarData.(type) {
 		case []byte:
 			strV, err := strconv.Unquote(string(vt))
 			if err != nil {
@@ -541,7 +556,9 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (interface{}, error) {
 				)
 			}
 
-			return int(intV), nil
+			return &alterInterface{
+				scalarData: int(intV),
+			}, nil
 		case string:
 			strV, err := strconv.Unquote(vt)
 			if err != nil {
@@ -556,15 +573,19 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (interface{}, error) {
 				)
 			}
 
-			return int(intV), nil
+			return &alterInterface{
+				scalarData: int(intV),
+			}, nil
 		case int, int8, int16, int32, int64,
 			uint, uint8, uint16, uint32, uint64, uintptr:
-			return nv, nil
+			return v, nil
 		default:
-			rv := reflect.ValueOf(nv)
+			rv := reflect.ValueOf(v.NormalizedValue())
 			switch vk := rv.Kind(); vk {
 			case reflect.Float32, reflect.Float64:
-				return int(rv.Float()), nil
+				return &alterInterface{
+					scalarData: int(rv.Float()),
+				}, nil
 			default:
 				return nil, fmt.Errorf(
 					"incompatible type %T as number", vt,
@@ -572,8 +593,7 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (interface{}, error) {
 			}
 		}
 	case TypeHintFloat:
-		nv := v.NormalizedValue()
-		switch vt := nv.(type) {
+		switch vt := v.scalarData.(type) {
 		case []byte:
 			strV, err := strconv.Unquote(string(vt))
 			if err != nil {
@@ -588,7 +608,9 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (interface{}, error) {
 				)
 			}
 
-			return f64v, nil
+			return &alterInterface{
+				scalarData: f64v,
+			}, nil
 		case string:
 			strV, err := strconv.Unquote(vt)
 			if err != nil {
@@ -603,18 +625,24 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (interface{}, error) {
 				)
 			}
 
-			return f64v, nil
+			return &alterInterface{
+				scalarData: f64v,
+			}, nil
 		case float32, float64:
-			return nv, nil
+			return v, nil
 		default:
-			rv := reflect.ValueOf(nv)
+			rv := reflect.ValueOf(v.NormalizedValue())
 			switch vk := rv.Kind(); vk {
 			case reflect.Int, reflect.Int8, reflect.Int16,
 				reflect.Int32, reflect.Int64:
-				return float64(rv.Int()), nil
+				return &alterInterface{
+					scalarData: float64(rv.Int()),
+				}, nil
 			case reflect.Uint, reflect.Uint8, reflect.Uint16,
 				reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-				return float64(rv.Uint()), nil
+				return &alterInterface{
+					scalarData: float64(rv.Uint()),
+				}, nil
 			default:
 				return nil, fmt.Errorf(
 					"incompatible type %T as number", vt,

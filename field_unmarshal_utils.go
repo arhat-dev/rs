@@ -21,6 +21,17 @@ func (f *alterInterface) HasValue() bool {
 	return f.mapData != nil || f.sliceData != nil || f.scalarData != nil
 }
 
+func (f *alterInterface) Value() interface{} {
+	switch {
+	case f.mapData != nil:
+		return f.mapData
+	case f.sliceData != nil:
+		return f.sliceData
+	default:
+		return f.scalarData
+	}
+}
+
 func (f *alterInterface) NormalizedValue() interface{} {
 	switch {
 	case f.mapData != nil:
