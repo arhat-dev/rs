@@ -1,4 +1,4 @@
-str: "str"
+str@: "str"
 str-from-float@?str: 1.100
 str-from-str@?str: "bar"
 str-from-int@?str: 100

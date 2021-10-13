@@ -1,4 +1,4 @@
-map:
+map@:
   foo: bar
 map-from-str@?map: "{foo: bar}"
 map-from-map@?map:
