@@ -206,41 +206,44 @@ func (f *BaseField) handleUnResolvedField(
 
 			// apply hint before resolving (rendering)
 			hint := renderer.typeHint
-			if hint == TypeHintNone {
-				ref := target.Type()
-				for ref.Kind() == reflect.Ptr {
-					ref = ref.Elem()
-				}
 
-				switch ref.Kind() {
-				case reflect.String:
-					hint = TypeHintStr
-				case reflect.Slice:
-					if ref.Elem().Kind() == reflect.Uint8 {
-						hint = TypeHintBytes
-					}
-				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-					reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-					reflect.Uintptr:
-					hint = TypeHintInt
-				case reflect.Float32, reflect.Float64:
-					hint = TypeHintFloat
-				case reflect.Struct, reflect.Map:
-					hint = TypeHintMap
-				default:
-					// no hint
-				}
-			}
+			// TBD: shall we add hint for typed data?
+			// 		 seems not necessary since use yaml.Unmarshal can handle it
+			//
+			// 			if hint == TypeHintNone {
+			// 				ref := target.Type()
+			// 				for ref.Kind() == reflect.Ptr {
+			// 					ref = ref.Elem()
+			// 				}
+			//
+			// 				switch ref.Kind() {
+			// 				case reflect.String:
+			// 					hint = TypeHintStr
+			// 				case reflect.Slice:
+			// 					if ref.Elem().Kind() == reflect.Uint8 {
+			// 						hint = TypeHintBytes
+			// 					}
+			// 				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+			// 					reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+			// 					reflect.Uintptr:
+			// 					hint = TypeHintInt
+			// 				case reflect.Float32, reflect.Float64:
+			// 					hint = TypeHintFloat
+			// 				case reflect.Struct, reflect.Map:
+			// 					hint = TypeHintMap
+			// 				default:
+			// 					// no hint
+			// 				}
+			// 			}
 
-			resolvedValue, err = applyTypeHint(renderer.typeHint, toResolve)
+			resolvedValue, err = applyTypeHint(hint, toResolve)
 			if err != nil {
 				return fmt.Errorf(
-					"failed to ensure type hint %q on yaml key %q",
-					renderer.typeHint, key.yamlKey,
+					"failed to ensure type hint %q on yaml key %q: %w",
+					hint, key.yamlKey, err,
 				)
 			}
 
-			// toResolve can only be nil when patch value is not set
 			resolvedValue, err = rc.RenderYaml(renderer.name, resolvedValue)
 			if err != nil {
 				return fmt.Errorf(
@@ -412,6 +415,27 @@ const (
 	TypeHintFloat
 )
 
+func (h TypeHint) String() string {
+	switch h {
+	case TypeHintNone:
+		return ""
+	case TypeHintStr:
+		return "str"
+	case TypeHintBytes:
+		return "[]byte"
+	case TypeHintObjects:
+		return "[]obj"
+	case TypeHintMap:
+		return "map"
+	case TypeHintInt:
+		return "int"
+	case TypeHintFloat:
+		return "float"
+	default:
+		return "<unknown>"
+	}
+}
+
 func ParseTypeHint(h string) (TypeHint, error) {
 	switch h {
 	case "":
@@ -433,6 +457,7 @@ func ParseTypeHint(h string) (TypeHint, error) {
 	}
 }
 
+// nolint:gocyclo
 func applyTypeHint(hint TypeHint, v *alterInterface) (interface{}, error) {
 	switch hint {
 	case TypeHintNone:
@@ -497,7 +522,7 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (interface{}, error) {
 			if err != nil {
 				return nil, fmt.Errorf(
 					"failed to unmarshal string %q as object array: %w",
-					string(vt), err,
+					vt, err,
 				)
 			}
 			return actualValue, nil
@@ -530,7 +555,7 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (interface{}, error) {
 			if err != nil {
 				return nil, fmt.Errorf(
 					"failed to unmarshal string %q as map: %w",
-					string(vt), err,
+					vt, err,
 				)
 			}
 			return actualValue, nil
@@ -572,7 +597,7 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (interface{}, error) {
 			if err != nil {
 				return nil, fmt.Errorf(
 					"failed to unmarshal string %q as int: %w",
-					string(vt), err,
+					vt, err,
 				)
 			}
 
@@ -619,7 +644,7 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (interface{}, error) {
 			if err != nil {
 				return nil, fmt.Errorf(
 					"failed to unmarshal string %q as float: %w",
-					string(vt), err,
+					vt, err,
 				)
 			}
 

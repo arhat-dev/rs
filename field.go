@@ -110,7 +110,7 @@ func parseRenderingSuffix(rs string) []*suffixSpec {
 			// size-- // size not used any more
 		}
 
-		if idx := strings.LastIndexByte(part, '?'); idx > 0 {
+		if idx := strings.LastIndexByte(part, '?'); idx >= 0 {
 			// TODO: do we really want to panic when type hint is not valid?
 			var err error
 			spec.typeHint, err = ParseTypeHint(part[idx+1:])
