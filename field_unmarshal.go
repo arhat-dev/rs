@@ -352,24 +352,29 @@ func (f *BaseField) unmarshal(
 	outVal reflect.Value,
 	keepOld bool,
 ) error {
+	outKind := outVal.Kind()
+
+	if !outVal.IsValid() {
+		return fmt.Errorf("invalid unmarshal target")
+	}
+
+	// reset to zero value if already set
 	if in == nil {
-		// reset to zero value if already set
-		if outVal.IsValid() {
-			outVal.Set(reflect.Zero(outVal.Type()))
-		}
+		outVal.Set(reflect.Zero(outVal.Type()))
 		return nil
 	}
 
-	for outVal.Kind() == reflect.Ptr {
-		// we are trying to set value of it, so init it when not set
+	// we are trying to set value of it, so initialize the pointer when not set before
+	for outKind == reflect.Ptr {
 		if outVal.IsZero() {
 			outVal.Set(reflect.New(outVal.Type().Elem()))
 		}
 
 		outVal = outVal.Elem()
+		outKind = outVal.Kind()
 	}
 
-	switch outKind := outVal.Kind(); outKind {
+	switch outKind {
 	case reflect.Invalid:
 		// no way to know what value we can set
 		// NOTE: this should not happen when unmarshaling, shall we panic instead?
@@ -392,33 +397,49 @@ func (f *BaseField) unmarshal(
 		return err
 	default:
 		// scalar types
-		val := reflect.ValueOf(in.NormalizedValue())
-		inKind := val.Kind()
+		// val := reflect.ValueOf(in.NormalizedValue())
+		// inKind := val.Kind()
 
-		switch inKind {
-		case reflect.Invalid:
-			if outVal.IsValid() {
-				outVal.Set(reflect.Zero(outVal.Type()))
-			}
+		inVal := in.NormalizedValue()
+		if inVal == nil {
+			outVal.Set(reflect.Zero(outVal.Type()))
 			return nil
-		case reflect.String:
-			if outKind == reflect.String {
-				outVal.Set(val)
-				return nil
-			}
+		}
 
-			return f.unmarshalRaw(in, outVal)
-		case outKind:
+		inRV := reflect.ValueOf(inVal)
+		inKind := inRV.Kind()
+		if inKind == outKind {
 			// same kind means same scalar type
-			outVal.Set(val)
+			outVal.Set(inRV)
 			return nil
+		}
+
+		switch vt := inVal.(type) {
+		case string:
+			// input is string, while output is not, maybe it's []byte ([]uint8)
+			switch outVal.Interface().(type) {
+			case []byte:
+				outVal.SetBytes([]byte(vt))
+				return nil
+			default:
+				return f.unmarshalRaw(in, outVal)
+			}
+		case []byte:
+			// input is bytes, while output is not, maybe it's string
+			switch outVal.Interface().(type) {
+			case string:
+				outVal.SetString(string(vt))
+				return nil
+			default:
+				return f.unmarshalRaw(in, outVal)
+			}
 		default:
-			// not same kind, check if assignable
-			if err := checkAssignable(yamlKey, val, outVal); err != nil {
+			// not compatible, check if assignable
+			if err := checkAssignable(yamlKey, inRV, outVal); err != nil {
 				return err
 			}
 
-			outVal.Set(val)
+			outVal.Set(inRV)
 			return nil
 		}
 	}
@@ -632,7 +653,7 @@ func (f *BaseField) unmarshalMap(yamlKey string, in *alterInterface, outVal refl
 func checkAssignable(yamlKey string, in, out reflect.Value) error {
 	if !in.Type().AssignableTo(out.Type()) {
 		return fmt.Errorf(
-			"unexpected value of yaml field %s: want %s, got %s",
+			"unexpected value of yaml field %q: want %q, got %q",
 			yamlKey, out.Type().String(), in.Type().String(),
 		)
 	}
