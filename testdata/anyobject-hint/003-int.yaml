@@ -1,0 +1,9 @@
+int: 1
+int-from-str@echo?int: "1"
+int-from-quoted-str@echo?int: '"1"'
+int-from-int@echo?int: 1
+---
+int: 1
+int-from-str: 1
+int-from-quoted-str: 1
+int-from-int: 1
