@@ -399,15 +399,21 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (*alterInterface, error) {
 	switch hint {
 	case TypeHintNone:
 		// no hint, use default behavior:
-		//  try to unmarshal value as yaml, return raw value if failed or result
+		// 	provided `v` could be generated with scalarValue set to map/slice values
+		//  so we are trying to unmarshal its value as an authentic alterInterface that
+		// 	is used in our unmarshal func
+		// 	return string value if failed or result
 		//  is string or []byte
 
 		var rawBytes []byte
+		returnStr := false
 		switch vt := v.scalarData.(type) {
 		case string:
 			rawBytes = []byte(vt)
+			returnStr = true
 		case []byte:
 			rawBytes = vt
+			returnStr = true
 		default:
 			var err error
 			rawBytes, err = yaml.Marshal(v)
@@ -416,10 +422,18 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (*alterInterface, error) {
 			}
 		}
 
+		// TODO: optimize unmarshal logic to work with fake alterInterface value
+		// 		 so we don't have to marshal and unmarshal here
+
 		tmp := new(alterInterface)
 		err := yaml.Unmarshal(rawBytes, tmp)
 		if err != nil {
 			// couldn't unmarshal, return original value
+			if returnStr {
+				return &alterInterface{
+					scalarData: string(rawBytes),
+				}, nil
+			}
 			return v, nil
 		}
 
@@ -427,6 +441,12 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (*alterInterface, error) {
 		case string, []byte, nil:
 			// yaml.Unmarshal will do some transformation on plaintext value
 			// when it's not valid yaml, so return the original value
+			if returnStr {
+				return &alterInterface{
+					scalarData: string(rawBytes),
+				}, nil
+			}
+
 			return v, nil
 		default:
 			return tmp, nil
