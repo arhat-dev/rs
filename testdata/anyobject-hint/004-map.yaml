@@ -1,7 +1,7 @@
 map:
   foo: bar
-map-from-str@echo?map: "{foo: bar}"
-map-from-map@echo?map:
+map-from-str@?map: "{foo: bar}"
+map-from-map@?map:
   foo: bar
 ---
 map:

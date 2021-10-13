@@ -1,7 +1,7 @@
 float: 1.1
-float-from-str@echo?float: "1.100"
-float-from-quoted-str@echo?float: '"1.100"'
-float-from-float@echo?float: 1.100
+float-from-str@?float: "1.100"
+float-from-quoted-str@?float: '"1.100"'
+float-from-float@?float: 1.100
 ---
 float: 1.1
 float-from-str: 1.1
