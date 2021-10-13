@@ -245,7 +245,7 @@ func TestApplyTypeHint(t *testing.T) {
 			}
 
 			assert.NoError(t, err)
-			assert.EqualValues(t, test.expected, ret)
+			assert.EqualValues(t, test.expected, ret.NormalizedValue())
 		})
 	}
 }
