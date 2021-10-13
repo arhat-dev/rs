@@ -1,4 +1,4 @@
-int: 1
+int@: 1
 int-from-str@?int: "1"
 int-from-quoted-str@?int: '"1"'
 int-from-int@?int: 1
