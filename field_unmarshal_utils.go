@@ -14,7 +14,7 @@ type alterInterface struct {
 
 	scalarData interface{}
 
-	rawScalarData string
+	originalNode *yaml.Node
 }
 
 func (f *alterInterface) HasValue() bool {
@@ -51,7 +51,7 @@ func (f *alterInterface) UnmarshalYAML(n *yaml.Node) error {
 		case "!!binary":
 			f.scalarData = n.Value
 		default:
-			f.rawScalarData = n.Value
+			f.originalNode = n
 			return n.Decode(&f.scalarData)
 		}
 
@@ -73,8 +73,8 @@ func (f *alterInterface) MarshalYAML() (interface{}, error) {
 		return f.mapData, nil
 	case f.sliceData != nil:
 		return f.sliceData, nil
-	case len(f.rawScalarData) != 0:
-		return f.rawScalarData, nil
+	case f.originalNode != nil:
+		return f.originalNode, nil
 	default:
 		return f.scalarData, nil
 	}
