@@ -402,33 +402,32 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (*alterInterface, error) {
 		//  try to unmarshal value as yaml, return raw value if failed or result
 		//  is string or []byte
 
-		var rawBytes *[]byte
+		var rawBytes []byte
 		switch vt := v.scalarData.(type) {
 		case string:
-			rb := []byte(vt)
-			rawBytes = &rb
+			rawBytes = []byte(vt)
 		case []byte:
-			rawBytes = &vt
+			rawBytes = vt
 		default:
-			return v, nil
+			var err error
+			rawBytes, err = yaml.Marshal(v)
+			if err != nil {
+				return nil, err
+			}
 		}
 
 		tmp := new(alterInterface)
-		err := yaml.Unmarshal(*rawBytes, tmp)
+		err := yaml.Unmarshal(rawBytes, tmp)
 		if err != nil {
 			// couldn't unmarshal, return original value
-			return &alterInterface{
-				scalarData: string(*rawBytes),
-			}, nil
+			return v, nil
 		}
 
-		switch tmp.NormalizedValue().(type) {
+		switch tmp.Value().(type) {
 		case string, []byte, nil:
 			// yaml.Unmarshal will do some transformation on plaintext value
 			// when it's not valid yaml, so return the original value
-			return &alterInterface{
-				scalarData: string(*rawBytes),
-			}, nil
+			return v, nil
 		default:
 			return tmp, nil
 		}
