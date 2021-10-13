@@ -180,13 +180,12 @@ func (f *BaseField) handleUnResolvedField(
 			toResolve = rawData.mapData[key.yamlKey]
 		}
 
-		var (
-			resolvedValue interface{}
-
-			err error
-		)
-
 		for _, renderer := range v.renderers {
+			var (
+				resolvedValue interface{}
+				err           error
+			)
+
 			// a patch is implied when the renderer has a `!` suffix
 			var patchSpec *renderingPatchSpec
 			if renderer.patchSpec {
@@ -244,62 +243,11 @@ func (f *BaseField) handleUnResolvedField(
 			}
 		}
 
-		tmp := toResolve
-		// 		tmp := &alterInterface{}
-		// 		switch {
-		// 		case target.Kind() == reflect.String:
-		// 			tmp.scalarData = string(resolvedValue)
-		// 		case target.Kind() == reflect.Slice && target.Type().Elem().Kind() == reflect.Uint8:
-		// 			tmp.scalarData = resolvedValue
-		// 		default:
-		// 			// err = yaml.Unmarshal(resolvedValue, tmp)
-		// 		}
-		//
-		// 		if err != nil {
-		// 			switch typ := target.Type(); typ {
-		// 			case rawInterfaceType, anyObjectMapType:
-		// 				// no idea what type is expected, keep it raw
-		// 				tmp.mapData = nil
-		// 				tmp.sliceData = nil
-		// 				tmp.scalarData = string(resolvedValue)
-		// 			default:
-		// 				// rare case
-		// 				return fmt.Errorf(
-		// 					"unexpected value type %q, not string, bytes or valid yaml %q: %w",
-		// 					typ.String(), resolvedValue, err,
-		// 				)
-		// 			}
-		// 		} else {
-		// 			// sometimes go-yaml will parse the input as string when it is not yaml
-		// 			// in that case will leave result malformed
-		// 			//
-		// 			// here we revert that change by checking and resetting scalarData to
-		// 			// resolvedValue when it's resolved as string
-		// 			switch tmp.scalarData.(type) {
-		// 			case string:
-		// 				tmp.scalarData = string(resolvedValue)
-		// 			case []byte:
-		// 				tmp.scalarData = resolvedValue
-		// 			case nil, bool, uintptr,
-		// 				complex64, complex128,
-		// 				float32, float64,
-		// 				int, int8, int16, int32, int64,
-		// 				uint, uint8, uint16, uint32, uint64:
-		// 				// unmarshaled scalar types, do nothing
-		// 			case interface{}:
-		// 				// TODO: narrow down the interface{} match
-		// 				// 		 this case matches all other types
-		//
-		// 				// map/struct and array/slice types are handled in arrayData and mapData
-		// 				// so we don't have to worry about these cases here
-		// 				tmp.scalarData = string(resolvedValue)
-		// 			}
-		// 		}
-
+		resolved := toResolve
 		if v.isCatchOtherField {
-			tmp = &alterInterface{
+			resolved = &alterInterface{
 				mapData: map[string]*alterInterface{
-					key.yamlKey: tmp,
+					key.yamlKey: resolved,
 				},
 			}
 		}
@@ -309,11 +257,11 @@ func (f *BaseField) handleUnResolvedField(
 		// 	     leave inconsistent data
 
 		actualKeepOld := keepOld || v.isCatchOtherField || i != 0
-		err = f.unmarshal(key.yamlKey, tmp, target, actualKeepOld)
+		err := f.unmarshal(key.yamlKey, resolved, target, actualKeepOld)
 		if err != nil {
 			return fmt.Errorf(
-				"failed to unmarshal resolved value to field: %w",
-				err,
+				"failed to unmarshal resolved value of yaml key %q to field %q: %w",
+				key.yamlKey, v.fieldName, err,
 			)
 		}
 	}
@@ -385,8 +333,8 @@ const (
 	TypeHintNone TypeHint = iota
 	TypeHintStr
 	TypeHintBytes
+	TypeHintObject
 	TypeHintObjects
-	TypeHintMap
 	TypeHintInt
 	TypeHintFloat
 )
@@ -401,8 +349,8 @@ func (h TypeHint) String() string {
 		return "[]byte"
 	case TypeHintObjects:
 		return "[]obj"
-	case TypeHintMap:
-		return "map"
+	case TypeHintObject:
+		return "obj"
 	case TypeHintInt:
 		return "int"
 	case TypeHintFloat:
@@ -422,8 +370,8 @@ func ParseTypeHint(h string) (TypeHint, error) {
 		return TypeHintBytes, nil
 	case "[]obj":
 		return TypeHintObjects, nil
-	case "map":
-		return TypeHintMap, nil
+	case "obj":
+		return TypeHintObject, nil
 	case "int":
 		return TypeHintInt, nil
 	case "float":
@@ -543,7 +491,7 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (interface{}, error) {
 				)
 			}
 		}
-	case TypeHintMap:
+	case TypeHintObject:
 		nv := v.NormalizedValue()
 		switch vt := nv.(type) {
 		case []byte:

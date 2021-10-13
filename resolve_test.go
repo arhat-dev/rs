@@ -129,29 +129,29 @@ func TestApplyTypeHint(t *testing.T) {
 		},
 
 		//
-		// Hint `map`
+		// Hint `obj`
 		//
 		{
-			name:     "Map from string",
-			hint:     "map",
+			name:     "Object from string",
+			hint:     "obj",
 			value:    "foo: bar",
 			expected: map[string]interface{}{"foo": "bar"},
 		},
 		{
-			name:     "Map from bytes",
-			hint:     "map",
+			name:     "Object from bytes",
+			hint:     "obj",
 			value:    []byte("foo: bar"),
 			expected: map[string]interface{}{"foo": "bar"},
 		},
 		{
-			name:      "Map from slice",
-			hint:      "map",
+			name:      "Object from slice",
+			hint:      "obj",
 			value:     []string{"foo", "bar"},
 			expectErr: true,
 		},
 		{
-			name:     "Map from map",
-			hint:     "map",
+			name:     "Object from map",
+			hint:     "obj",
 			value:    map[string]string{"foo": "bar"},
 			expected: map[string]string{"foo": "bar"},
 		},
