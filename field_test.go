@@ -35,7 +35,7 @@ func (h *testRenderingHandler) RenderYaml(renderer string, data interface{}) (re
 		return nil, nil
 	}
 
-	panic("unexpected renderer name")
+	panic(fmt.Errorf("unexpected renderer name: %q", h))
 }
 
 func testUsingYamlSpecs(t *testing.T, specDirPath string) {
