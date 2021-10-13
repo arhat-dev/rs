@@ -1,7 +1,7 @@
 map@:
   foo: bar
-map-from-str@?map: "{foo: bar}"
-map-from-map@?map:
+map-from-str@?obj: "{foo: bar}"
+map-from-map@?obj:
   foo: bar
 ---
 map:
