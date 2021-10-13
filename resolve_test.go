@@ -22,6 +22,28 @@ func TestApplyTypeHint(t *testing.T) {
 
 		expectErr bool
 	}{
+		// no hint
+		{
+			name:     "Default Str Map",
+			value:    "{foo: bar}",
+			expected: map[string]interface{}{"foo": "bar"},
+		},
+		{
+			name:     "Default Str List",
+			value:    "- foo\n- bar\n",
+			expected: []interface{}{"foo", "bar"},
+		},
+		{
+			name:     "Default Str",
+			value:    "foo",
+			expected: "foo",
+		},
+		{
+			name:     "Default Str Can be malformed",
+			value:    "# foo",
+			expected: "# foo",
+		},
+
 		//
 		// Hint `str`
 		//

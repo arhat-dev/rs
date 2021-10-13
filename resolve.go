@@ -437,8 +437,40 @@ func ParseTypeHint(h string) (TypeHint, error) {
 func applyTypeHint(hint TypeHint, v *alterInterface) (interface{}, error) {
 	switch hint {
 	case TypeHintNone:
-		// no hint, return directly
-		return v.NormalizedValue(), nil
+		// no hint, use default behavior:
+		//  try to unmarshal value as yaml, return raw value if failed or result
+		//  is string or []byte
+
+		nv := v.NormalizedValue()
+
+		var rawBytes []byte
+
+		switch vt := nv.(type) {
+		case string:
+			rawBytes = []byte(vt)
+		case []byte:
+			rawBytes = vt
+		}
+
+		if rawBytes != nil {
+			var tmp interface{}
+			err := yaml.Unmarshal(rawBytes, &tmp)
+			if err != nil {
+				// couldn't unmarshal, return original value
+				return string(rawBytes), nil
+			}
+
+			switch tmp.(type) {
+			case string, []byte, nil:
+				// yaml.Unmarshal will do some transformation on plaintext value
+				// when it's not valid yaml, so return the original value
+				_ = tmp
+			default:
+				nv = tmp
+			}
+		}
+
+		return nv, nil
 	case TypeHintStr:
 		if v.originalNode != nil && v.originalNode.Kind == yaml.ScalarNode {
 			return v.originalNode.Value, nil
