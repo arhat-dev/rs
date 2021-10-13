@@ -516,8 +516,8 @@ func (f *BaseField) unmarshalInterface(
 func (f *BaseField) unmarshalArray(yamlKey string, in *alterInterface, outVal reflect.Value) error {
 	if in.sliceData == nil && in.HasValue() {
 		return fmt.Errorf(
-			"unexpected non array data of yaml field %q for %s",
-			yamlKey, outVal.Type().String(),
+			"unexpected non array data (%T) of yaml field %q for %s",
+			in.Value(), yamlKey, outVal.Type().String(),
 		)
 	}
 
@@ -552,8 +552,8 @@ func (f *BaseField) unmarshalArray(yamlKey string, in *alterInterface, outVal re
 func (f *BaseField) unmarshalSlice(yamlKey string, in *alterInterface, outVal reflect.Value, keepOld bool) error {
 	if in.sliceData == nil && in.HasValue() {
 		return fmt.Errorf(
-			"unexpected non slice data of yaml field %q for %s",
-			yamlKey, outVal.Type().String(),
+			"unexpected non slice data (%T) of yaml field %q for %s",
+			in.Value(), yamlKey, outVal.Type().String(),
 		)
 	}
 
@@ -593,8 +593,8 @@ func (f *BaseField) unmarshalSlice(yamlKey string, in *alterInterface, outVal re
 func (f *BaseField) unmarshalMap(yamlKey string, in *alterInterface, outVal reflect.Value, keepOld bool) error {
 	if in.mapData == nil && in.HasValue() {
 		return fmt.Errorf(
-			"unexpected non map data of yaml field %q for %s",
-			yamlKey, outVal.Type().String(),
+			"unexpected non map data (%T) of yaml field %q for %s",
+			in.Value(), yamlKey, outVal.Type().String(),
 		)
 	}
 
