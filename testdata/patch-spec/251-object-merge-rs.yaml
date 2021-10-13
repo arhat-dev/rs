@@ -1,4 +1,4 @@
-foo@echo!:
+foo@!:
   value@echo:
     a@add-suffix-test: a
   merge:

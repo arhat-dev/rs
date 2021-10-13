@@ -1,10 +1,10 @@
 str: "str"
-str-from-float@echo?str: 1.100
-str-from-str@echo?str: "bar"
-str-from-int@echo?str: 100
-str-from-map@echo?str:
+str-from-float@?str: 1.100
+str-from-str@?str: "bar"
+str-from-int@?str: 100
+str-from-map@?str:
   foo: bar
-str-from-arr@echo?str:
+str-from-arr@?str:
 - foo
 - bar
 ---

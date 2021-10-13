@@ -244,12 +244,14 @@ func (f *BaseField) handleUnResolvedField(
 				)
 			}
 
-			resolvedValue, err = rc.RenderYaml(renderer.name, resolvedValue)
-			if err != nil {
-				return fmt.Errorf(
-					"renderer %q failed to render value: %w",
-					renderer.name, err,
-				)
+			if len(renderer.name) != 0 {
+				resolvedValue, err = rc.RenderYaml(renderer.name, resolvedValue)
+				if err != nil {
+					return fmt.Errorf(
+						"renderer %q failed to render value: %w",
+						renderer.name, err,
+					)
+				}
 			}
 
 			if patchSpec != nil {
