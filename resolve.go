@@ -217,6 +217,17 @@ func (f *BaseField) handleUnResolvedField(
 
 			// apply patch if set
 			if patchSpec != nil {
+				// apply hint before patching to make sure value to be patched
+				// is correctly typed
+				hint := renderer.typeHint
+				toResolve, err = applyTypeHint(hint, toResolve)
+				if err != nil {
+					return fmt.Errorf(
+						"failed to ensure type hint %q on yaml key %q: %w",
+						hint, key.yamlKey, err,
+					)
+				}
+
 				resolvedValue, err = patchSpec.ApplyTo(toResolve.NormalizedValue())
 				if err != nil {
 					return fmt.Errorf(
