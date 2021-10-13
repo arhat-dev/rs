@@ -204,54 +204,28 @@ func (f *BaseField) handleUnResolvedField(
 				}
 			}
 
-			// apply hint before resolving (rendering)
-			hint := renderer.typeHint
-
-			// TBD: shall we add hint for typed data?
-			// 		 seems not necessary since use yaml.Unmarshal can handle it
-			//
-			// 			if hint == TypeHintNone {
-			// 				ref := target.Type()
-			// 				for ref.Kind() == reflect.Ptr {
-			// 					ref = ref.Elem()
-			// 				}
-			//
-			// 				switch ref.Kind() {
-			// 				case reflect.String:
-			// 					hint = TypeHintStr
-			// 				case reflect.Slice:
-			// 					if ref.Elem().Kind() == reflect.Uint8 {
-			// 						hint = TypeHintBytes
-			// 					}
-			// 				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
-			// 					reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
-			// 					reflect.Uintptr:
-			// 					hint = TypeHintInt
-			// 				case reflect.Float32, reflect.Float64:
-			// 					hint = TypeHintFloat
-			// 				case reflect.Struct, reflect.Map:
-			// 					hint = TypeHintMap
-			// 				default:
-			// 					// no hint
-			// 				}
-			// 			}
-
-			resolvedValue, err = applyTypeHint(hint, toResolve)
-			if err != nil {
-				return fmt.Errorf(
-					"failed to ensure type hint %q on yaml key %q: %w",
-					hint, key.yamlKey, err,
-				)
-			}
-
 			if len(renderer.name) != 0 {
-				resolvedValue, err = rc.RenderYaml(renderer.name, resolvedValue)
+				resolvedValue, err = rc.RenderYaml(renderer.name, toResolve.NormalizedValue())
 				if err != nil {
 					return fmt.Errorf(
 						"renderer %q failed to render value: %w",
 						renderer.name, err,
 					)
 				}
+
+				toResolve = &alterInterface{
+					scalarData: resolvedValue,
+				}
+			}
+
+			// apply hint after resolving (rendering)
+			hint := renderer.typeHint
+			resolvedValue, err = applyTypeHint(hint, toResolve)
+			if err != nil {
+				return fmt.Errorf(
+					"failed to ensure type hint %q on yaml key %q: %w",
+					hint, key.yamlKey, err,
+				)
 			}
 
 			if patchSpec != nil {
