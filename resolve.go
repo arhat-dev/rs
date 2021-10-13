@@ -3,7 +3,6 @@ package rs
 import (
 	"fmt"
 	"reflect"
-	"strings"
 	"sync/atomic"
 
 	"gopkg.in/yaml.v3"
@@ -180,41 +179,54 @@ func (f *BaseField) handleUnResolvedField(
 	for i, rawData := range v.rawDataList {
 		toResolve := rawData
 		if v.isCatchOtherField {
+			// unwrap map data for resolving
 			toResolve = rawData.mapData[key.yamlKey]
 		}
 
 		var (
-			resolvedValue []byte
-			err           error
+			resolvedValue interface{}
+
+			err error
 		)
 
 		for _, renderer := range v.renderers {
-			// a patch is implied when renderer has a `!` suffix
-
-			var (
-				patchSpec *renderingPatchSpec
-			)
-			if strings.HasSuffix(renderer, "!") {
-				renderer = renderer[:len(renderer)-1]
-
-				patchSpec, toResolve, err = f.resolvePatchSpec(rc, toResolve)
+			// a patch is implied when the renderer has a `!` suffix
+			var patchSpec *renderingPatchSpec
+			if renderer.patchSpec {
+				var valueToPatch interface{}
+				patchSpec, valueToPatch, err = f.resolvePatchSpec(rc, toResolve.NormalizedValue())
 				if err != nil {
 					return fmt.Errorf(
 						"failed to resolve patch spec for renderer %q: %w",
-						renderer, err,
+						renderer.name, err,
 					)
+				}
+
+				toResolve = &alterInterface{
+					scalarData: valueToPatch,
 				}
 			}
 
+			// 			// a type is implied when renderer has a `?<type>` in the end
+			// 			// and before the patch suffix `!`
+			// 			var typeHint string
+			// 			if idx := strings.LastIndexByte(renderer, '?'); idx > 0 {
+			// 				typeHint = renderer[idx+1:]
+			// 				renderer = renderer[:idx]
+			// 			}
+			//
+			// 			switch {
+			// 			case typeHint == "str":
+			// 			case toResolve != nil:
+			// 			}
+
 			// toResolve can only be nil when patch value is not set
-			if toResolve != nil {
-				resolvedValue, err = rc.RenderYaml(renderer, toResolve.Value())
-				if err != nil {
-					return fmt.Errorf(
-						"renderer %q failed to render value: %w",
-						renderer, err,
-					)
-				}
+			resolvedValue, err = rc.RenderYaml(renderer.name, toResolve.NormalizedValue())
+			if err != nil {
+				return fmt.Errorf(
+					"renderer %q failed to render value: %w",
+					renderer.name, err,
+				)
 			}
 
 			if patchSpec != nil {
@@ -233,55 +245,57 @@ func (f *BaseField) handleUnResolvedField(
 			}
 		}
 
-		tmp := &alterInterface{}
-		switch {
-		case target.Kind() == reflect.String:
-			tmp.scalarData = string(resolvedValue)
-		case target.Kind() == reflect.Slice && target.Type().Elem().Kind() == reflect.Uint8:
-			tmp.scalarData = resolvedValue
-		default:
-			err = yaml.Unmarshal(resolvedValue, tmp)
-		}
-
-		if err != nil {
-			switch typ := target.Type(); typ {
-			case rawInterfaceType, anyObjectMapType:
-				// no idea what type is expected, keep it raw
-				tmp.mapData = nil
-				tmp.sliceData = nil
-				tmp.scalarData = string(resolvedValue)
-			default:
-				// rare case
-				return fmt.Errorf(
-					"unexpected value type %q, not string, bytes or valid yaml %q: %w",
-					typ.String(), resolvedValue, err,
-				)
-			}
-		} else {
-			// sometimes go-yaml will parse the input as string when it is not yaml
-			// in that case will leave result malformed
-			//
-			// revert that change by checking and resetting scalarData to resolvedValue
-			switch tmp.scalarData.(type) {
-			case string:
-				tmp.scalarData = string(resolvedValue)
-			case []byte:
-				tmp.scalarData = resolvedValue
-			case nil, bool, uintptr,
-				complex64, complex128,
-				float32, float64,
-				int, int8, int16, int32, int64,
-				uint, uint8, uint16, uint32, uint64:
-				// unmarshaled scalar types, do nothing
-			case interface{}:
-				// TODO: narrow down the interface{} match
-				// 		 this case will match all other types
-
-				// map/struct and array/slice types are handled in arrayData and mapData
-				// so we don't have to worry about these cases here
-				tmp.scalarData = string(resolvedValue)
-			}
-		}
+		tmp := toResolve
+		// 		tmp := &alterInterface{}
+		// 		switch {
+		// 		case target.Kind() == reflect.String:
+		// 			tmp.scalarData = string(resolvedValue)
+		// 		case target.Kind() == reflect.Slice && target.Type().Elem().Kind() == reflect.Uint8:
+		// 			tmp.scalarData = resolvedValue
+		// 		default:
+		// 			// err = yaml.Unmarshal(resolvedValue, tmp)
+		// 		}
+		//
+		// 		if err != nil {
+		// 			switch typ := target.Type(); typ {
+		// 			case rawInterfaceType, anyObjectMapType:
+		// 				// no idea what type is expected, keep it raw
+		// 				tmp.mapData = nil
+		// 				tmp.sliceData = nil
+		// 				tmp.scalarData = string(resolvedValue)
+		// 			default:
+		// 				// rare case
+		// 				return fmt.Errorf(
+		// 					"unexpected value type %q, not string, bytes or valid yaml %q: %w",
+		// 					typ.String(), resolvedValue, err,
+		// 				)
+		// 			}
+		// 		} else {
+		// 			// sometimes go-yaml will parse the input as string when it is not yaml
+		// 			// in that case will leave result malformed
+		// 			//
+		// 			// here we revert that change by checking and resetting scalarData to
+		// 			// resolvedValue when it's resolved as string
+		// 			switch tmp.scalarData.(type) {
+		// 			case string:
+		// 				tmp.scalarData = string(resolvedValue)
+		// 			case []byte:
+		// 				tmp.scalarData = resolvedValue
+		// 			case nil, bool, uintptr,
+		// 				complex64, complex128,
+		// 				float32, float64,
+		// 				int, int8, int16, int32, int64,
+		// 				uint, uint8, uint16, uint32, uint64:
+		// 				// unmarshaled scalar types, do nothing
+		// 			case interface{}:
+		// 				// TODO: narrow down the interface{} match
+		// 				// 		 this case matches all other types
+		//
+		// 				// map/struct and array/slice types are handled in arrayData and mapData
+		// 				// so we don't have to worry about these cases here
+		// 				tmp.scalarData = string(resolvedValue)
+		// 			}
+		// 		}
 
 		if v.isCatchOtherField {
 			tmp = &alterInterface{
@@ -311,23 +325,23 @@ func (f *BaseField) handleUnResolvedField(
 // resolve user provided data as patch spec
 func (f *BaseField) resolvePatchSpec(
 	rc RenderingHandler,
-	toResolve *alterInterface,
+	toResolve interface{},
 ) (
 	patchSpec *renderingPatchSpec,
-	resolvedValueData *alterInterface,
+	value interface{},
 	err error,
 ) {
 	var patchSpecBytes []byte
-	switch t := toResolve.Value().(type) {
+	switch t := toResolve.(type) {
 	case string:
 		patchSpecBytes = []byte(t)
 	case []byte:
 		patchSpecBytes = t
 	default:
-		patchSpecBytes, err = yaml.Marshal(toResolve.Value())
+		patchSpecBytes, err = yaml.Marshal(toResolve)
 		if err != nil {
 			return nil, nil, fmt.Errorf(
-				"failed to marshal renderer data to bytes for resolving patch spec: %w",
+				"failed to marshal renderer data for patch spec: %w",
 				err,
 			)
 		}
@@ -350,68 +364,11 @@ func (f *BaseField) resolvePatchSpec(
 		)
 	}
 
-	resolvedVal, err := yaml.Marshal(patchSpec.Value)
-	if err != nil {
-		return nil, nil, fmt.Errorf(
-			"failed to marshal resolved value data: %w",
-			err,
-		)
+	if patchSpec.Value != nil {
+		value = patchSpec.Value.NormalizedValue()
 	}
 
-	resolvedValueData = new(alterInterface)
-	err = yaml.Unmarshal(resolvedVal, resolvedValueData)
-	if err != nil {
-		return nil, nil, fmt.Errorf(
-			"failed to prepare resolvde value data: %w",
-			err,
-		)
-	}
-
-	return patchSpec, resolvedValueData, nil
-}
-
-func (f *BaseField) addUnresolvedField(
-	// key part
-	yamlKey string,
-	suffix string,
-
-	// value part
-	fieldName string,
-	fieldValue reflect.Value,
-	isCatchOtherField bool,
-	rawData *alterInterface,
-) {
-	if f.unresolvedFields == nil {
-		f.unresolvedFields = make(map[unresolvedFieldKey]*unresolvedFieldValue)
-	}
-
-	key := unresolvedFieldKey{
-		// yamlKey@suffix: ...
-		yamlKey: yamlKey,
-		suffix:  suffix,
-	}
-
-	if isCatchOtherField {
-		if f.catchOtherFields == nil {
-			f.catchOtherFields = make(map[string]struct{})
-		}
-
-		f.catchOtherFields[yamlKey] = struct{}{}
-	}
-
-	if old, exists := f.unresolvedFields[key]; exists {
-		old.rawDataList = append(old.rawDataList, rawData)
-		return
-	}
-
-	f.unresolvedFields[key] = &unresolvedFieldValue{
-		fieldName:   fieldName,
-		fieldValue:  fieldValue,
-		rawDataList: []*alterInterface{rawData},
-		renderers:   strings.Split(suffix, "|"),
-
-		isCatchOtherField: isCatchOtherField,
-	}
+	return patchSpec, value, nil
 }
 
 func (f *BaseField) isCatchOtherField(yamlKey string) bool {
