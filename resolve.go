@@ -215,16 +215,7 @@ func (f *BaseField) handleUnResolvedField(
 				}
 			}
 
-			// apply hint after resolving (rendering)
-			hint := renderer.typeHint
-			toResolve, err = applyTypeHint(hint, toResolve)
-			if err != nil {
-				return fmt.Errorf(
-					"failed to ensure type hint %q on yaml key %q: %w",
-					hint, key.yamlKey, err,
-				)
-			}
-
+			// apply patch if set
 			if patchSpec != nil {
 				resolvedValue, err = patchSpec.ApplyTo(toResolve.NormalizedValue())
 				if err != nil {
@@ -238,6 +229,16 @@ func (f *BaseField) handleUnResolvedField(
 				toResolve = &alterInterface{
 					scalarData: resolvedValue,
 				}
+			}
+
+			// apply hint after resolving (rendering)
+			hint := renderer.typeHint
+			toResolve, err = applyTypeHint(hint, toResolve)
+			if err != nil {
+				return fmt.Errorf(
+					"failed to ensure type hint %q on yaml key %q: %w",
+					hint, key.yamlKey, err,
+				)
 			}
 		}
 
