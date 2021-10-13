@@ -163,10 +163,6 @@ func tryResolve(rc RenderingHandler, depth int, targetField reflect.Value) error
 	return nil
 }
 
-var (
-	anyObjectMapType = reflect.TypeOf((*map[string]*AnyObject)(nil)).Elem()
-)
-
 func (f *BaseField) handleUnResolvedField(
 	rc RenderingHandler,
 	depth int,

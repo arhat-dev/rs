@@ -19,21 +19,21 @@ type AnyObjectMap struct {
 }
 
 // NormalizedValue returns value of the AnyObjectMap with type map[string]interface{}
-func (o *AnyObjectMap) NormalizedValue() interface{} {
-	if o.Data == nil {
+func (aom *AnyObjectMap) NormalizedValue() interface{} {
+	if aom.Data == nil {
 		return map[string]interface{}(nil)
 	}
 
-	ret := make(map[string]interface{}, len(o.Data))
-	for k, v := range o.Data {
+	ret := make(map[string]interface{}, len(aom.Data))
+	for k, v := range aom.Data {
 		ret[k] = v.NormalizedValue()
 	}
 
 	return ret
 }
 
-func (md *AnyObjectMap) MarshalYAML() (interface{}, error) { return md.Data, nil }
-func (md *AnyObjectMap) MarshalJSON() ([]byte, error)      { return json.Marshal(md.Data) }
+func (aom *AnyObjectMap) MarshalYAML() (interface{}, error) { return aom.Data, nil }
+func (aom *AnyObjectMap) MarshalJSON() ([]byte, error)      { return json.Marshal(aom.Data) }
 
 // AnyObject is a `interface{}` equivalent with rendering suffix support
 type AnyObject struct {

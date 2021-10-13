@@ -107,7 +107,7 @@ func parseRenderingSuffix(rs string) []*suffixSpec {
 
 		if spec.patchSpec {
 			part = part[:size-1]
-			size--
+			// size-- // size not used any more
 		}
 
 		if idx := strings.LastIndexByte(part, '?'); idx > 0 {
