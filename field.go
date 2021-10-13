@@ -90,7 +90,7 @@ type suffixSpec struct {
 	name string
 
 	patchSpec bool
-	typeHint  string
+	typeHint  TypeHint
 }
 
 func parseRenderingSuffix(rs string) []*suffixSpec {
@@ -111,7 +111,13 @@ func parseRenderingSuffix(rs string) []*suffixSpec {
 		}
 
 		if idx := strings.LastIndexByte(part, '?'); idx > 0 {
-			spec.typeHint = part[idx+1:]
+			// TODO: do we really want to panic when type hint is not valid?
+			var err error
+			spec.typeHint, err = ParseTypeHint(part[idx+1:])
+			if err != nil {
+				panic(err)
+			}
+
 			part = part[:idx]
 		}
 

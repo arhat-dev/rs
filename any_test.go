@@ -227,6 +227,10 @@ func TestAnyObject(t *testing.T) {
 	}
 }
 
+func TestAnyObject_WithHint(t *testing.T) {
+	testUsingYamlSpecs(t, "testdata/anyobject-hint")
+}
+
 func unsetAnyObjectBaseField(obj *AnyObject) {
 	if obj.mapData != nil {
 		obj.mapData.BaseField = BaseField{}

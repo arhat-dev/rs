@@ -3,6 +3,7 @@ package rs
 import (
 	"fmt"
 	"reflect"
+	"strconv"
 	"sync/atomic"
 
 	"gopkg.in/yaml.v3"
@@ -203,21 +204,44 @@ func (f *BaseField) handleUnResolvedField(
 				}
 			}
 
-			// 			// a type is implied when renderer has a `?<type>` in the end
-			// 			// and before the patch suffix `!`
-			// 			var typeHint string
-			// 			if idx := strings.LastIndexByte(renderer, '?'); idx > 0 {
-			// 				typeHint = renderer[idx+1:]
-			// 				renderer = renderer[:idx]
-			// 			}
-			//
-			// 			switch {
-			// 			case typeHint == "str":
-			// 			case toResolve != nil:
-			// 			}
+			// apply hint before resolving (rendering)
+			hint := renderer.typeHint
+			if hint == TypeHintNone {
+				ref := target.Type()
+				for ref.Kind() == reflect.Ptr {
+					ref = ref.Elem()
+				}
+
+				switch ref.Kind() {
+				case reflect.String:
+					hint = TypeHintStr
+				case reflect.Slice:
+					if ref.Elem().Kind() == reflect.Uint8 {
+						hint = TypeHintBytes
+					}
+				case reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32, reflect.Int64,
+					reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+					reflect.Uintptr:
+					hint = TypeHintInt
+				case reflect.Float32, reflect.Float64:
+					hint = TypeHintFloat
+				case reflect.Struct, reflect.Map:
+					hint = TypeHintMap
+				default:
+					// no hint
+				}
+			}
+
+			resolvedValue, err = applyTypeHint(renderer.typeHint, toResolve)
+			if err != nil {
+				return fmt.Errorf(
+					"failed to ensure type hint %q on yaml key %q",
+					renderer.typeHint, key.yamlKey,
+				)
+			}
 
 			// toResolve can only be nil when patch value is not set
-			resolvedValue, err = rc.RenderYaml(renderer.name, toResolve.NormalizedValue())
+			resolvedValue, err = rc.RenderYaml(renderer.name, resolvedValue)
 			if err != nil {
 				return fmt.Errorf(
 					"renderer %q failed to render value: %w",
@@ -374,4 +398,250 @@ func (f *BaseField) isCatchOtherField(yamlKey string) bool {
 
 	_, ok := f.catchOtherFields[yamlKey]
 	return ok
+}
+
+type TypeHint int8
+
+const (
+	TypeHintNone TypeHint = iota
+	TypeHintStr
+	TypeHintBytes
+	TypeHintObjects
+	TypeHintMap
+	TypeHintInt
+	TypeHintFloat
+)
+
+func ParseTypeHint(h string) (TypeHint, error) {
+	switch h {
+	case "":
+		return TypeHintNone, nil
+	case "str":
+		return TypeHintStr, nil
+	case "[]byte":
+		return TypeHintBytes, nil
+	case "[]obj":
+		return TypeHintObjects, nil
+	case "map":
+		return TypeHintMap, nil
+	case "int":
+		return TypeHintInt, nil
+	case "float":
+		return TypeHintFloat, nil
+	default:
+		return -1, fmt.Errorf("unknown type hint %q", h)
+	}
+}
+
+func applyTypeHint(hint TypeHint, v *alterInterface) (interface{}, error) {
+	switch hint {
+	case TypeHintNone:
+		// no hint, return directly
+		return v.NormalizedValue(), nil
+	case TypeHintStr:
+		if v.originalNode != nil && v.originalNode.Kind == yaml.ScalarNode {
+			return v.originalNode.Value, nil
+		}
+
+		switch vt := v.NormalizedValue().(type) {
+		case []byte:
+			return string(vt), nil
+		case string:
+			return vt, nil
+		default:
+			bytesV, err := yaml.Marshal(vt)
+			if err != nil {
+				return nil, fmt.Errorf(
+					"failed to marshal %T value as str",
+					vt,
+				)
+			}
+			return string(bytesV), nil
+		}
+	case TypeHintBytes:
+		if v.originalNode != nil && v.originalNode.Kind == yaml.ScalarNode {
+			return []byte(v.originalNode.Value), nil
+		}
+
+		switch vt := v.NormalizedValue().(type) {
+		case []byte:
+			return vt, nil
+		case string:
+			return []byte(vt), nil
+		default:
+			bytesV, err := yaml.Marshal(vt)
+			if err != nil {
+				return nil, fmt.Errorf(
+					"failed to marshal %T value as str",
+					vt,
+				)
+			}
+			return bytesV, nil
+		}
+	case TypeHintObjects:
+		nv := v.NormalizedValue()
+		switch vt := nv.(type) {
+		case []byte:
+			var actualValue []interface{}
+			err := yaml.Unmarshal(vt, &actualValue)
+			if err != nil {
+				return nil, fmt.Errorf(
+					"failed to unmarshal bytes %q as object array: %w",
+					string(vt), err,
+				)
+			}
+			return actualValue, nil
+		case string:
+			var actualValue []interface{}
+			err := yaml.Unmarshal([]byte(vt), &actualValue)
+			if err != nil {
+				return nil, fmt.Errorf(
+					"failed to unmarshal string %q as object array: %w",
+					string(vt), err,
+				)
+			}
+			return actualValue, nil
+		default:
+			switch vk := reflect.ValueOf(nv).Kind(); vk {
+			case reflect.Array, reflect.Slice, reflect.Interface, reflect.Ptr:
+				return nv, nil
+			default:
+				return nil, fmt.Errorf(
+					"incompatible type %T as object array", vt,
+				)
+			}
+		}
+	case TypeHintMap:
+		nv := v.NormalizedValue()
+		switch vt := nv.(type) {
+		case []byte:
+			var actualValue map[string]interface{}
+			err := yaml.Unmarshal(vt, &actualValue)
+			if err != nil {
+				return nil, fmt.Errorf(
+					"failed to unmarshal bytes %q as map: %w",
+					string(vt), err,
+				)
+			}
+			return actualValue, nil
+		case string:
+			var actualValue map[string]interface{}
+			err := yaml.Unmarshal([]byte(vt), &actualValue)
+			if err != nil {
+				return nil, fmt.Errorf(
+					"failed to unmarshal string %q as map: %w",
+					string(vt), err,
+				)
+			}
+			return actualValue, nil
+		default:
+			switch vk := reflect.ValueOf(nv).Kind(); vk {
+			case reflect.Map, reflect.Struct, reflect.Interface, reflect.Ptr:
+				return nv, nil
+			default:
+				return nil, fmt.Errorf(
+					"incompatible type %T as map", vt,
+				)
+			}
+		}
+	case TypeHintInt:
+		nv := v.NormalizedValue()
+		switch vt := nv.(type) {
+		case []byte:
+			strV, err := strconv.Unquote(string(vt))
+			if err != nil {
+				strV = string(vt)
+			}
+
+			intV, err := strconv.ParseInt(strV, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf(
+					"failed to unmarshal bytes %q as int: %w",
+					string(vt), err,
+				)
+			}
+
+			return int(intV), nil
+		case string:
+			strV, err := strconv.Unquote(vt)
+			if err != nil {
+				strV = vt
+			}
+
+			intV, err := strconv.ParseInt(strV, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf(
+					"failed to unmarshal string %q as int: %w",
+					string(vt), err,
+				)
+			}
+
+			return int(intV), nil
+		case int, int8, int16, int32, int64,
+			uint, uint8, uint16, uint32, uint64, uintptr:
+			return nv, nil
+		default:
+			rv := reflect.ValueOf(nv)
+			switch vk := rv.Kind(); vk {
+			case reflect.Float32, reflect.Float64:
+				return int(rv.Float()), nil
+			default:
+				return nil, fmt.Errorf(
+					"incompatible type %T as number", vt,
+				)
+			}
+		}
+	case TypeHintFloat:
+		nv := v.NormalizedValue()
+		switch vt := nv.(type) {
+		case []byte:
+			strV, err := strconv.Unquote(string(vt))
+			if err != nil {
+				strV = string(vt)
+			}
+
+			f64v, err := strconv.ParseFloat(strV, 64)
+			if err != nil {
+				return nil, fmt.Errorf(
+					"failed to unmarshal bytes %q as float: %w",
+					string(vt), err,
+				)
+			}
+
+			return f64v, nil
+		case string:
+			strV, err := strconv.Unquote(vt)
+			if err != nil {
+				strV = vt
+			}
+
+			f64v, err := strconv.ParseFloat(strV, 64)
+			if err != nil {
+				return nil, fmt.Errorf(
+					"failed to unmarshal string %q as float: %w",
+					string(vt), err,
+				)
+			}
+
+			return f64v, nil
+		case float32, float64:
+			return nv, nil
+		default:
+			rv := reflect.ValueOf(nv)
+			switch vk := rv.Kind(); vk {
+			case reflect.Int, reflect.Int8, reflect.Int16,
+				reflect.Int32, reflect.Int64:
+				return float64(rv.Int()), nil
+			case reflect.Uint, reflect.Uint8, reflect.Uint16,
+				reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+				return float64(rv.Uint()), nil
+			default:
+				return nil, fmt.Errorf(
+					"incompatible type %T as number", vt,
+				)
+			}
+		}
+	default:
+		return nil, fmt.Errorf("unknown type hint %d", hint)
+	}
 }

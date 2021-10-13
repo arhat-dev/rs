@@ -1,0 +1,12 @@
+map:
+  foo: bar
+map-from-str@echo?map: "{foo: bar}"
+map-from-map@echo?map:
+  foo: bar
+---
+map:
+  foo: bar
+map-from-str:
+  foo: bar
+map-from-map:
+  foo: bar
