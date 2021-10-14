@@ -8,6 +8,8 @@ import (
 
 func convertAnyObjectToAlterInterface(o *AnyObject) *alterInterface {
 	switch {
+	case o == nil:
+		return nil
 	case o.mapData != nil:
 		if o.mapData.Data == nil {
 			return &alterInterface{
@@ -75,6 +77,8 @@ func (f *alterInterface) Value() interface{} {
 
 func (f *alterInterface) NormalizedValue() interface{} {
 	switch {
+	case f == nil:
+		return nil
 	case f.mapData != nil:
 		ret := make(map[string]interface{}, len(f.mapData))
 		for k, v := range f.mapData {
