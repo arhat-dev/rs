@@ -512,8 +512,9 @@ func (f *BaseField) unmarshalInterface(
 func (f *BaseField) unmarshalArray(yamlKey string, in, outVal reflect.Value) error {
 	if ik := in.Kind(); ik != reflect.Slice && ik != reflect.Array {
 		return fmt.Errorf(
-			"unexpected non array data (%v) of yaml field %q for %s",
-			in.Interface(), yamlKey, outVal.Type().String(),
+			"unexpected non array data (%T(%q)) of yaml field %q for %s",
+			in.Type().String(), in.Interface(),
+			yamlKey, outVal.Type().String(),
 		)
 	}
 
@@ -547,8 +548,9 @@ func (f *BaseField) unmarshalArray(yamlKey string, in, outVal reflect.Value) err
 func (f *BaseField) unmarshalSlice(yamlKey string, in, outVal reflect.Value, keepOld bool) error {
 	if ik := in.Kind(); ik != reflect.Slice && ik != reflect.Array {
 		return fmt.Errorf(
-			"unexpected non slice data (%v) of yaml field %q for %s",
-			in.Interface(), yamlKey, outVal.Type().String(),
+			"unexpected non slice data (%T(%q)) of yaml field %q for %s",
+			in.Type().String(), in.Interface(),
+			yamlKey, outVal.Type().String(),
 		)
 	}
 
@@ -586,8 +588,9 @@ func (f *BaseField) unmarshalSlice(yamlKey string, in, outVal reflect.Value, kee
 func (f *BaseField) unmarshalMap(yamlKey string, in, outVal reflect.Value, keepOld bool) error {
 	if in.Kind() != reflect.Map {
 		return fmt.Errorf(
-			"unexpected non map data (%v) of yaml field %q for %s",
-			in.Interface(), yamlKey, outVal.Type().String(),
+			"unexpected non map data (%T(%q)) of yaml field %q for %s",
+			in.Type().String(), in.Interface(),
+			yamlKey, outVal.Type().String(),
 		)
 	}
 
@@ -631,7 +634,12 @@ func (f *BaseField) unmarshalMap(yamlKey string, in, outVal reflect.Value, keepO
 			// use k rather than `yamlKey`
 			// because it can be the field catching other
 			// (field tag: `rs:"other"`)
-			k, v, val, keepOld,
+			k,
+			// NOTE: if the map value type is interface{} (e.g. map[string]interface{})
+			//		 return value of iter.Value() will lose its real type info (always be interface{} type)
+			// 		 to fix this, we have to get its underlying data and do reflect.ValueOf again
+			reflect.ValueOf(v.Interface()),
+			val, keepOld,
 		)
 		if err != nil {
 			return fmt.Errorf("failed to unmarshal map value %s for key %q: %w",
