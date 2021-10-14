@@ -1,0 +1,12 @@
+map@:
+  foo: bar
+map-from-str@?obj: "{foo: bar}"
+map-from-map@?obj:
+  foo: bar
+---
+map:
+  foo: bar
+map-from-str:
+  foo: bar
+map-from-map:
+  foo: bar
