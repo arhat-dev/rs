@@ -5,6 +5,10 @@ import (
 	"reflect"
 )
 
+// Inherit unresolved fields from another BaseField
+//
+// after a successful function call, f wiil be able to resolve its struct fields
+// with unresolved values from b and its own
 func (f *BaseField) Inherit(b *BaseField) error {
 	if len(b.unresolvedFields) == 0 {
 		return nil
