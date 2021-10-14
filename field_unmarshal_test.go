@@ -9,45 +9,49 @@ import (
 )
 
 func TestBaseField_UnmarshalYAML(t *testing.T) {
+	type inlineStructWithBaseField struct {
+		BaseField
+
+		StringMap map[string]string `yaml:"string_map"`
+		Array     [5]interface{}    `yaml:"array"`
+	}
+
 	type testFieldStruct struct {
 		BaseField
 
-		Str     string   `yaml:"str"`
-		StrPtr  *string  `yaml:"str_ptr"`
-		BoolPtr *bool    `yaml:"bool_ptr"`
-		Other   []string `rs:"other"`
+		Str     string            `yaml:"str"`
+		StrPtr  *string           `yaml:"str_ptr"`
+		BoolPtr *bool             `yaml:"bool_ptr"`
+		Other   map[string]string `rs:"other"`
 
-		NestedStruct struct {
-			BaseField
-
-			StringMap map[string]string `yaml:"string_map"`
-			Array     [5]interface{}    `yaml:"array"`
-		} `yaml:"nested_struct"`
+		InlineWithBaseField inlineStructWithBaseField `yaml:",inline"`
 	}
 
 	tests := []struct {
-		name     string
-		yaml     string
-		expected interface{}
+		name                string
+		yaml                string
+		expectedUnmarshaled interface{}
+
+		expectedResolved interface{}
 	}{
 		{
 			name: "basic",
 			yaml: `str: bar`,
-			expected: &testFieldStruct{
-				BaseField: BaseField{
-					unresolvedFields: nil,
-				},
-				Str: "bar",
+
+			expectedResolved: &testFieldStruct{Str: "bar"},
+			expectedUnmarshaled: &testFieldStruct{
+				BaseField: BaseField{unresolvedFields: nil},
+				Str:       "bar",
 			},
 		},
 		{
 			name: "basic nil",
 			yaml: `str: `,
-			expected: &testFieldStruct{
-				BaseField: BaseField{
-					unresolvedFields: nil,
-				},
-				Str: "",
+
+			expectedResolved: &testFieldStruct{},
+			expectedUnmarshaled: &testFieldStruct{
+				BaseField: BaseField{unresolvedFields: nil},
+				Str:       "",
 			},
 		},
 		{
@@ -56,32 +60,26 @@ func TestBaseField_UnmarshalYAML(t *testing.T) {
 str_ptr: null
 bool_ptr: null
 `,
-			expected: &testFieldStruct{
-				BaseField: BaseField{
-					unresolvedFields: nil,
-				},
-				StrPtr:  nil,
-				BoolPtr: nil,
+			expectedResolved: &testFieldStruct{},
+			expectedUnmarshaled: &testFieldStruct{
+				BaseField: BaseField{unresolvedFields: nil},
+				StrPtr:    nil,
+				BoolPtr:   nil,
 			},
 		},
 		{
 			name: "basic+renderer",
-			yaml: `str@a: echo bar`,
-			expected: &testFieldStruct{
+			yaml: `str@add-suffix-test: bar`,
+
+			expectedResolved: &testFieldStruct{Str: "bar-test"},
+			expectedUnmarshaled: &testFieldStruct{
 				BaseField: BaseField{
 					unresolvedFields: map[unresolvedFieldKey]*unresolvedFieldValue{
-						{
-							yamlKey: "str",
-							suffix:  "a",
-						}: {
-							fieldName:  "Str",
-							fieldValue: reflect.Value{},
-							rawDataList: []*alterInterface{
-								{
-									scalarData: "echo bar",
-								},
-							},
-							renderers: []*suffixSpec{{name: "a"}},
+						{yamlKey: "str", suffix: "add-suffix-test"}: {
+							fieldName:   "Str",
+							fieldValue:  reflect.Value{},
+							rawDataList: []*alterInterface{{scalarData: "bar"}},
+							renderers:   []*suffixSpec{{name: "add-suffix-test"}},
 						},
 					},
 				},
@@ -90,8 +88,15 @@ bool_ptr: null
 		},
 		{
 			name: "catchAll+renderer",
-			yaml: `{ other_field_1@a: foo, other_field_2@b: bar }`,
-			expected: &testFieldStruct{
+			yaml: `{ other_field_1@echo: foo, other_field_2@add-suffix-test: bar }`,
+
+			expectedResolved: &testFieldStruct{
+				Other: map[string]string{
+					"other_field_1": "foo",
+					"other_field_2": "bar-test",
+				},
+			},
+			expectedUnmarshaled: &testFieldStruct{
 				BaseField: BaseField{
 					catchOtherFields: map[string]struct{}{
 						"other_field_1": {},
@@ -99,10 +104,7 @@ bool_ptr: null
 					},
 					catchOtherCache: nil,
 					unresolvedFields: map[unresolvedFieldKey]*unresolvedFieldValue{
-						{
-							yamlKey: "other_field_1",
-							suffix:  "a",
-						}: {
+						{yamlKey: "other_field_1", suffix: "echo"}: {
 							fieldName:  "Other",
 							fieldValue: reflect.Value{},
 							rawDataList: []*alterInterface{
@@ -112,23 +114,18 @@ bool_ptr: null
 									},
 								},
 							},
-							renderers:         []*suffixSpec{{name: "a"}},
+							renderers:         []*suffixSpec{{name: "echo"}},
 							isCatchOtherField: true,
 						},
-						{
-							yamlKey: "other_field_2",
-							suffix:  "b",
-						}: {
+						{yamlKey: "other_field_2", suffix: "add-suffix-test"}: {
 							fieldName:  "Other",
 							fieldValue: reflect.Value{},
-							rawDataList: []*alterInterface{
-								{
-									mapData: map[string]*alterInterface{
-										"other_field_2": {scalarData: "bar"},
-									},
+							rawDataList: []*alterInterface{{
+								mapData: map[string]*alterInterface{
+									"other_field_2": {scalarData: "bar"},
 								},
-							},
-							renderers:         []*suffixSpec{{name: "b"}},
+							}},
+							renderers:         []*suffixSpec{{name: "add-suffix-test"}},
 							isCatchOtherField: true,
 						},
 					},
@@ -142,11 +139,10 @@ bool_ptr: null
 			name: "nested+renderer",
 			// editorconfig-checker-disable
 			yaml: `---
-str@a: echo bar
-nested_struct@b:
-  string_map:
-    c@d|e|f: e
-  array@f:
+
+string_map@echo|echo: |-
+  c: e
+array@echo|echo|echo: |-
   - "1"
   - "2"
   - "3"
@@ -154,80 +150,94 @@ nested_struct@b:
   - '5'
 `,
 			// editorconfig-checker-enable
-			expected: &testFieldStruct{
-				BaseField: BaseField{
-					unresolvedFields: map[unresolvedFieldKey]*unresolvedFieldValue{
-						{
-							yamlKey: "str",
-							suffix:  "a",
-						}: {
-							fieldName:  "Str",
-							fieldValue: reflect.Value{},
-							rawDataList: []*alterInterface{
-								{
-									scalarData: "echo bar",
+
+			expectedResolved: &testFieldStruct{
+				InlineWithBaseField: inlineStructWithBaseField{
+					StringMap: map[string]string{"c": "e"},
+					Array:     [5]interface{}{"1", "2", "3", "4", "5"},
+				},
+			},
+			expectedUnmarshaled: &testFieldStruct{
+				InlineWithBaseField: inlineStructWithBaseField{
+					BaseField: BaseField{
+						unresolvedFields: map[unresolvedFieldKey]*unresolvedFieldValue{
+							{yamlKey: "string_map", suffix: "echo|echo"}: {
+								fieldName:  "StringMap",
+								fieldValue: reflect.Value{},
+								rawDataList: []*alterInterface{{
+									scalarData: "c: e",
+								}},
+								renderers: []*suffixSpec{
+									{name: "echo"},
+									{name: "echo"},
 								},
 							},
-							renderers: []*suffixSpec{{name: "a"}},
-						},
-						{
-							yamlKey: "nested_struct",
-							suffix:  "b",
-						}: {
-							fieldName:  "NestedStruct",
-							fieldValue: reflect.Value{},
-							rawDataList: []*alterInterface{
-								{
-									mapData: map[string]*alterInterface{
-										"string_map": {
-											mapData: map[string]*alterInterface{
-												"c@d|e|f": {scalarData: "e"},
-											},
-										},
-										"array@f": {
-											sliceData: []*alterInterface{
-												{scalarData: "1"},
-												{scalarData: "2"},
-												{scalarData: "3"},
-												{scalarData: "4"},
-												{scalarData: "5"},
-											},
-										},
-									},
+							{yamlKey: "array", suffix: "echo|echo|echo"}: {
+								fieldName:  "Array",
+								fieldValue: reflect.Value{},
+								rawDataList: []*alterInterface{{
+									scalarData: `- "1"
+- "2"
+- "3"
+- "4"
+- '5'`,
+								}},
+								renderers: []*suffixSpec{
+									{name: "echo"},
+									{name: "echo"},
+									{name: "echo"},
 								},
 							},
-							renderers: []*suffixSpec{{name: "b"}},
 						},
 					},
 				},
-				Str: "",
 			},
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			out := Init(&testFieldStruct{}, nil).(*testFieldStruct)
-			assert.EqualValues(t, 1, out._initialized)
+			t.Run("unmarshal", func(t *testing.T) {
+				out := Init(&testFieldStruct{}, nil).(*testFieldStruct)
+				assert.EqualValues(t, 1, out._initialized)
 
-			if !assert.NoError(t, yaml.Unmarshal([]byte(test.yaml), out)) {
-				return
-			}
+				if !assert.NoError(t, yaml.Unmarshal([]byte(test.yaml), out)) {
+					return
+				}
 
-			out._initialized = 0
-			out._parentValue = reflect.Value{}
-			for k := range out.unresolvedFields {
-				out.unresolvedFields[k].fieldValue = reflect.Value{}
-			}
+				// reset for assertion
+				out._initialized = 0
+				out._parentValue = reflect.Value{}
+				for k := range out.unresolvedFields {
+					out.unresolvedFields[k].fieldValue = reflect.Value{}
+				}
 
-			assert.EqualValues(t, 1, out.NestedStruct._initialized)
-			out.NestedStruct._initialized = 0
-			out.NestedStruct._parentValue = reflect.Value{}
-			for k := range out.NestedStruct.unresolvedFields {
-				out.NestedStruct.unresolvedFields[k].fieldValue = reflect.Value{}
-			}
+				assert.EqualValues(t, 1, out.InlineWithBaseField._initialized)
+				out.InlineWithBaseField._initialized = 0
+				out.InlineWithBaseField._parentValue = reflect.Value{}
+				for k := range out.InlineWithBaseField.unresolvedFields {
+					out.InlineWithBaseField.unresolvedFields[k].fieldValue = reflect.Value{}
+				}
 
-			assert.EqualValues(t, test.expected, out)
+				assert.EqualValues(t, test.expectedUnmarshaled, out)
+			})
+
+			t.Run("resolve", func(t *testing.T) {
+				out := Init(&testFieldStruct{}, nil).(*testFieldStruct)
+				assert.EqualValues(t, 1, out._initialized)
+
+				if !assert.NoError(t, yaml.Unmarshal([]byte(test.yaml), out)) {
+					return
+				}
+
+				assert.NoError(t, out.ResolveFields(&testRenderingHandler{}, -1))
+
+				// reset for assertion
+				out.BaseField = BaseField{}
+				out.InlineWithBaseField.BaseField = BaseField{}
+
+				assert.EqualValues(t, test.expectedResolved, out)
+			})
 		})
 	}
 }
