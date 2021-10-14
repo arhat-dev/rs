@@ -1,4 +1,4 @@
-foo@echo!:
+foo@!:
   value: []
   merge:
   - value:

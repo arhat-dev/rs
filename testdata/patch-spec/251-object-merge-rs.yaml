@@ -1,10 +1,10 @@
-foo@echo!:
+foo@!:
   value@echo:
     a@add-suffix-test: a
   merge:
   - value@echo:
       b@add-suffix-test: b
-  - value@echo:
+  - value@echo: |-
       c@add-suffix-test: c
 ---
 foo:
