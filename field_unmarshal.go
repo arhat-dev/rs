@@ -511,11 +511,44 @@ func (f *BaseField) unmarshalInterface(
 
 func (f *BaseField) unmarshalArray(yamlKey string, in, outVal reflect.Value) error {
 	if ik := in.Kind(); ik != reflect.Slice && ik != reflect.Array {
-		return fmt.Errorf(
-			"unexpected non array data (%T(%q)) of yaml field %q for %s",
-			in.Type().String(), in.Interface(),
-			yamlKey, outVal.Type().String(),
-		)
+		var err error
+		switch it := in.Interface().(type) {
+		case []byte:
+			if len(it) == 0 {
+				// nil value
+				return f.unmarshal(yamlKey, reflect.Value{}, outVal, false)
+			}
+
+			var inVal []interface{}
+			err = yaml.Unmarshal(it, &inVal)
+			if err != nil {
+				break
+			}
+
+			in = reflect.ValueOf(inVal)
+		case string:
+			if len(it) == 0 {
+				// nil value
+				return f.unmarshal(yamlKey, reflect.Value{}, outVal, false)
+			}
+
+			var inVal []interface{}
+			err = yaml.Unmarshal([]byte(it), &inVal)
+			if err != nil {
+				break
+			}
+
+			in = reflect.ValueOf(inVal)
+		default:
+			err = fmt.Errorf("incompatible value %q with type %T", it, it)
+		}
+
+		if err != nil {
+			return fmt.Errorf(
+				"unexpected non array data of yaml field %q for %s: %w",
+				yamlKey, outVal.Type().String(), err,
+			)
+		}
 	}
 
 	size := in.Len()
@@ -547,11 +580,44 @@ func (f *BaseField) unmarshalArray(yamlKey string, in, outVal reflect.Value) err
 
 func (f *BaseField) unmarshalSlice(yamlKey string, in, outVal reflect.Value, keepOld bool) error {
 	if ik := in.Kind(); ik != reflect.Slice && ik != reflect.Array {
-		return fmt.Errorf(
-			"unexpected non slice data (%T(%q)) of yaml field %q for %s",
-			in.Type().String(), in.Interface(),
-			yamlKey, outVal.Type().String(),
-		)
+		var err error
+		switch it := in.Interface().(type) {
+		case []byte:
+			if len(it) == 0 {
+				// nil value
+				return f.unmarshal(yamlKey, reflect.Value{}, outVal, keepOld)
+			}
+
+			var inVal []interface{}
+			err = yaml.Unmarshal(it, &inVal)
+			if err != nil {
+				break
+			}
+
+			in = reflect.ValueOf(inVal)
+		case string:
+			if len(it) == 0 {
+				// nil value
+				return f.unmarshal(yamlKey, reflect.Value{}, outVal, keepOld)
+			}
+
+			var inVal []interface{}
+			err = yaml.Unmarshal([]byte(it), &inVal)
+			if err != nil {
+				break
+			}
+
+			in = reflect.ValueOf(inVal)
+		default:
+			err = fmt.Errorf("incompatible value %q with type %T", it, it)
+		}
+
+		if err != nil {
+			return fmt.Errorf(
+				"unexpected non slice data of yaml field %q for %s: %w",
+				yamlKey, outVal.Type().String(), err,
+			)
+		}
 	}
 
 	size := in.Len()
@@ -587,11 +653,44 @@ func (f *BaseField) unmarshalSlice(yamlKey string, in, outVal reflect.Value, kee
 
 func (f *BaseField) unmarshalMap(yamlKey string, in, outVal reflect.Value, keepOld bool) error {
 	if in.Kind() != reflect.Map {
-		return fmt.Errorf(
-			"unexpected non map data (%T(%q)) of yaml field %q for %s",
-			in.Type().String(), in.Interface(),
-			yamlKey, outVal.Type().String(),
-		)
+		var err error
+		switch it := in.Interface().(type) {
+		case []byte:
+			if len(it) == 0 {
+				// nil value
+				return f.unmarshal(yamlKey, reflect.Value{}, outVal, keepOld)
+			}
+
+			inVal := make(map[string]interface{})
+			err = yaml.Unmarshal(it, &inVal)
+			if err != nil {
+				break
+			}
+
+			in = reflect.ValueOf(inVal)
+		case string:
+			if len(it) == 0 {
+				// nil value
+				return f.unmarshal(yamlKey, reflect.Value{}, outVal, keepOld)
+			}
+
+			inVal := make(map[string]interface{})
+			err = yaml.Unmarshal([]byte(it), &inVal)
+			if err != nil {
+				break
+			}
+
+			in = reflect.ValueOf(inVal)
+		default:
+			err = fmt.Errorf("incompatible value %q with type %T", it, it)
+		}
+
+		if err != nil {
+			return fmt.Errorf(
+				"unexpected non map data of yaml field %q for %s: %w",
+				yamlKey, outVal.Type().String(), err,
+			)
+		}
 	}
 
 	// map key MUST be string
