@@ -13,7 +13,7 @@ type MergeSource struct {
 	BaseField `yaml:"-" json:"-"`
 
 	// Value for the source
-	Value *AnyObject `yaml:"value,omitempty"`
+	Value AnyObject `yaml:"value,omitempty"`
 
 	// Select some data from the source
 	Select string `yaml:"select,omitempty"`
@@ -31,7 +31,7 @@ type renderingPatchSpec struct {
 	// 		  merge: { value: [foo] }
 	//
 	// then the resolve value of foo will be `[bar, foo]`
-	Value *AnyObject `yaml:"value"`
+	Value AnyObject `yaml:"value"`
 
 	// Merge additional data into Value
 	//
@@ -361,7 +361,7 @@ type JSONPatchSpec struct {
 
 	Path string `yaml:"path" json:"path"`
 
-	Value *AnyObject `yaml:"value,omitempty" json:"value,omitempty"`
+	Value AnyObject `yaml:"value,omitempty" json:"value,omitempty"`
 
 	// Select part of the value for patching
 	//
