@@ -198,8 +198,7 @@ func (f *BaseField) UnmarshalYAML(n *yaml.Node) error {
 		}
 
 		// rs tag is used to extend yaml tag
-		dTags := strings.Split(sf.Tag.Get(TagNameRS), ",")
-		for _, t := range dTags {
+		for _, t := range strings.Split(sf.Tag.Get(TagNameRS), ",") {
 			switch t {
 			case "other":
 				// other is used to match unhandled values
