@@ -6,8 +6,49 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// alterInterface is a direct `interface{}` replacement for data unmarshaling
-// with no rendering suffix support
+func convertAnyObjectToAlterInterface(o *AnyObject) *alterInterface {
+	switch {
+	case o.mapData != nil:
+		if o.mapData.Data == nil {
+			return &alterInterface{
+				mapData:      (map[string]*alterInterface)(nil),
+				originalNode: o.originalNode,
+			}
+		}
+
+		md := make(map[string]*alterInterface, len(o.mapData.Data))
+		for k, v := range o.mapData.Data {
+			md[k] = convertAnyObjectToAlterInterface(v)
+		}
+
+		return &alterInterface{
+			mapData:      md,
+			originalNode: o.originalNode,
+		}
+	case o.sliceData != nil:
+		sd := make([]*alterInterface, len(o.sliceData))
+		for i := range o.sliceData {
+			sd[i] = convertAnyObjectToAlterInterface(o.sliceData[i])
+		}
+
+		return &alterInterface{
+			sliceData:    sd,
+			originalNode: o.originalNode,
+		}
+	default:
+		return &alterInterface{
+			scalarData:   o.scalarData,
+			originalNode: o.originalNode,
+		}
+	}
+}
+
+// alterInterface is a direct `interface{}` replacement for data
+// unmarshaling with no rendering suffix support
+//
+// this struct exists mainly for preserving original string value of yaml
+// field, since we need to keep track of all scalar fields, we have to handle
+// map/slice data as well
 type alterInterface struct {
 	mapData   map[string]*alterInterface
 	sliceData []*alterInterface

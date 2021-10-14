@@ -180,29 +180,33 @@ func (f *BaseField) handleUnResolvedField(
 			toResolve = rawData.mapData[key.yamlKey]
 		}
 
+		var (
+			err error
+		)
+
 		for _, renderer := range v.renderers {
-			var (
-				resolvedValue interface{}
-				err           error
-			)
 
 			// a patch is implied when the renderer has a `!` suffix
 			var patchSpec *renderingPatchSpec
 			if renderer.patchSpec {
-				patchSpec, toResolve, err = f.resolvePatchSpec(rc, toResolve.NormalizedValue())
+				patchSpec, toResolve, err = f.resolvePatchSpec(rc, toResolve)
 				if err != nil {
 					return fmt.Errorf(
 						"failed to resolve patch spec for renderer %q: %w",
 						renderer.name, err,
 					)
 				}
-				if toResolve == nil {
-					toResolve = &alterInterface{}
-				}
 			}
 
 			if len(renderer.name) != 0 {
-				resolvedValue, err = rc.RenderYaml(renderer.name, toResolve.NormalizedValue())
+				var tmp interface{}
+
+				// toResolve can be nil when no patch value is set
+				if toResolve != nil {
+					tmp = toResolve.NormalizedValue()
+				}
+
+				tmp, err = rc.RenderYaml(renderer.name, tmp)
 				if err != nil {
 					return fmt.Errorf(
 						"renderer %q failed to render value: %w",
@@ -211,14 +215,14 @@ func (f *BaseField) handleUnResolvedField(
 				}
 
 				toResolve = &alterInterface{
-					scalarData: resolvedValue,
+					scalarData: tmp,
 				}
 			}
 
 			// apply patch if set
 			if patchSpec != nil {
-				// apply hint before patching to make sure value to be patched
-				// is correctly typed
+				// apply type hint before patching to make sure value
+				// being patched is correctly typed
 				hint := renderer.typeHint
 				toResolve, err = applyTypeHint(hint, toResolve)
 				if err != nil {
@@ -228,7 +232,8 @@ func (f *BaseField) handleUnResolvedField(
 					)
 				}
 
-				resolvedValue, err = patchSpec.ApplyTo(toResolve.NormalizedValue())
+				var tmp interface{}
+				tmp, err = patchSpec.ApplyTo(toResolve.NormalizedValue())
 				if err != nil {
 					return fmt.Errorf(
 						"failed to apply patches: %w",
@@ -236,9 +241,8 @@ func (f *BaseField) handleUnResolvedField(
 					)
 				}
 
-				// prepare for next renderer
 				toResolve = &alterInterface{
-					scalarData: resolvedValue,
+					scalarData: tmp,
 				}
 			}
 
@@ -253,13 +257,11 @@ func (f *BaseField) handleUnResolvedField(
 			}
 		}
 
-		resolved := toResolve
+		resolved := toResolve.NormalizedValue()
 		if v.isCatchOtherField {
 			// wrap back for catch other filed
-			resolved = &alterInterface{
-				mapData: map[string]*alterInterface{
-					key.yamlKey: resolved,
-				},
+			resolved = map[string]interface{}{
+				key.yamlKey: resolved,
 			}
 		}
 
@@ -268,7 +270,7 @@ func (f *BaseField) handleUnResolvedField(
 		// 	     leave inconsistent data
 
 		actualKeepOld := keepOld || v.isCatchOtherField || i != 0
-		err := f.unmarshal(key.yamlKey, resolved, target, actualKeepOld)
+		err = f.unmarshal(key.yamlKey, reflect.ValueOf(resolved), target, actualKeepOld)
 		if err != nil {
 			return fmt.Errorf(
 				"failed to unmarshal resolved value of yaml key %q to field %q: %w",
@@ -323,9 +325,7 @@ func (f *BaseField) resolvePatchSpec(
 	}
 
 	if patchSpec.Value != nil {
-		value = &alterInterface{
-			scalarData: patchSpec.Value.NormalizedValue(),
-		}
+		value = convertAnyObjectToAlterInterface(patchSpec.Value)
 	}
 
 	return patchSpec, value, nil
@@ -399,55 +399,35 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (*alterInterface, error) {
 	switch hint {
 	case TypeHintNone:
 		// no hint, use default behavior:
-		// 	provided `v` could be generated with scalarValue set to map/slice values
-		//  so we are trying to unmarshal its value as an authentic alterInterface that
-		// 	is used in our unmarshal func
-		// 	return string value if failed or result
+		// 	return string value if unmarshal failed or result
 		//  is string or []byte
 
 		var rawBytes []byte
-		returnStr := false
 		switch vt := v.scalarData.(type) {
 		case string:
 			rawBytes = []byte(vt)
-			returnStr = true
 		case []byte:
 			rawBytes = vt
-			returnStr = true
 		default:
-			var err error
-			rawBytes, err = yaml.Marshal(v)
-			if err != nil {
-				return nil, err
-			}
+			return v, nil
 		}
-
-		// TODO: optimize unmarshal logic to work with fake alterInterface value
-		// 		 so we don't have to marshal and unmarshal here
 
 		tmp := new(alterInterface)
 		err := yaml.Unmarshal(rawBytes, tmp)
 		if err != nil {
-			// couldn't unmarshal, return original value
-			if returnStr {
-				return &alterInterface{
-					scalarData: string(rawBytes),
-				}, nil
-			}
-			return v, nil
+			// couldn't unmarshal, return original value in string format
+			return &alterInterface{
+				scalarData: string(rawBytes),
+			}, nil
 		}
 
 		switch tmp.Value().(type) {
 		case string, []byte, nil:
 			// yaml.Unmarshal will do some transformation on plaintext value
 			// when it's not valid yaml, so return the original value
-			if returnStr {
-				return &alterInterface{
-					scalarData: string(rawBytes),
-				}, nil
-			}
-
-			return v, nil
+			return &alterInterface{
+				scalarData: string(rawBytes),
+			}, nil
 		default:
 			return tmp, nil
 		}
