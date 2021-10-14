@@ -100,7 +100,7 @@ func (f *BaseField) handleResolvedField(
 		return nil
 	}
 
-	switch field.Kind() {
+	switch fk := field.Kind(); fk {
 	case reflect.Map:
 		if field.IsNil() {
 			return nil
@@ -116,7 +116,7 @@ func (f *BaseField) handleResolvedField(
 	case reflect.Array:
 		fallthrough
 	case reflect.Slice:
-		if field.IsNil() {
+		if fk == reflect.Slice && field.IsNil() {
 			// this is a resolved field, slice/array empty means no value
 			return nil
 		}
@@ -458,7 +458,7 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (*alterInterface, error) {
 			}, nil
 		}
 
-		switch vt := v.NormalizedValue().(type) {
+		switch vt := v.Value().(type) {
 		case []byte:
 			return &alterInterface{
 				scalarData: string(vt),
@@ -486,7 +486,7 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (*alterInterface, error) {
 			}, nil
 		}
 
-		switch vt := v.NormalizedValue().(type) {
+		switch vt := v.Value().(type) {
 		case []byte:
 			return &alterInterface{
 				scalarData: vt,
@@ -546,7 +546,7 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (*alterInterface, error) {
 			err := yaml.Unmarshal(vt, &ret.mapData)
 			if err != nil {
 				return nil, fmt.Errorf(
-					"failed to unmarshal bytes %q as map: %w",
+					"failed to unmarshal bytes %q as object: %w",
 					string(vt), err,
 				)
 			}
@@ -556,7 +556,7 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (*alterInterface, error) {
 			err := yaml.Unmarshal([]byte(vt), &ret.mapData)
 			if err != nil {
 				return nil, fmt.Errorf(
-					"failed to unmarshal string %q as map: %w",
+					"failed to unmarshal string %q as object: %w",
 					vt, err,
 				)
 			}
@@ -567,7 +567,7 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (*alterInterface, error) {
 				return v, nil
 			default:
 				return nil, fmt.Errorf(
-					"incompatible type %T as map", vt,
+					"incompatible type %T as object", vt,
 				)
 			}
 		}
@@ -662,7 +662,7 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (*alterInterface, error) {
 		case float32, float64:
 			return v, nil
 		default:
-			rv := reflect.ValueOf(v.NormalizedValue())
+			rv := reflect.ValueOf(v.Value())
 			switch vk := rv.Kind(); vk {
 			case reflect.Int, reflect.Int8, reflect.Int16,
 				reflect.Int32, reflect.Int64:
