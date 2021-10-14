@@ -236,12 +236,13 @@ func (f *BaseField) UnmarshalYAML(n *yaml.Node) error {
 	}
 
 	handledYamlValues := make(map[string]struct{})
-	// handle rendering suffix
+
+	// set values
 	for rawYamlKey, v := range m {
 		suffixAt := strings.LastIndexByte(rawYamlKey, '@')
 		yamlKey := rawYamlKey
 		if suffixAt == -1 {
-			// no rendering suffix, fill value
+			// no rendering suffix, fill value directly
 
 			if _, ok := handledYamlValues[yamlKey]; ok {
 				return fmt.Errorf(
@@ -269,8 +270,16 @@ func (f *BaseField) UnmarshalYAML(n *yaml.Node) error {
 				}
 			}
 
+			var val interface{}
+			if v != nil {
+				val = v.NormalizedValue()
+			}
+
 			err = f.unmarshal(
-				yamlKey, v, fSpec.fieldValue, fSpec.isCatchOther,
+				yamlKey,
+				reflect.ValueOf(val),
+				fSpec.fieldValue,
+				fSpec.isCatchOther,
 			)
 			if err != nil {
 				return fmt.Errorf(
@@ -348,18 +357,18 @@ func (f *BaseField) UnmarshalYAML(n *yaml.Node) error {
 
 func (f *BaseField) unmarshal(
 	yamlKey string,
-	in *alterInterface,
+	in reflect.Value,
 	outVal reflect.Value,
 	keepOld bool,
 ) error {
 	outKind := outVal.Kind()
 
 	if !outVal.IsValid() {
-		return fmt.Errorf("invalid unmarshal target")
+		return fmt.Errorf("invalid nil unmarshal target")
 	}
 
 	// reset to zero value if already set
-	if in == nil {
+	if !in.IsValid() {
 		outVal.Set(reflect.Zero(outVal.Type()))
 		return nil
 	}
@@ -400,21 +409,14 @@ func (f *BaseField) unmarshal(
 		// val := reflect.ValueOf(in.NormalizedValue())
 		// inKind := val.Kind()
 
-		inVal := in.NormalizedValue()
-		if inVal == nil {
-			outVal.Set(reflect.Zero(outVal.Type()))
-			return nil
-		}
-
-		inRV := reflect.ValueOf(inVal)
-		inKind := inRV.Kind()
+		inKind := in.Kind()
 		if inKind == outKind {
 			// same kind means same scalar type
-			outVal.Set(inRV)
+			outVal.Set(in)
 			return nil
 		}
 
-		switch vt := inVal.(type) {
+		switch vt := in.Interface().(type) {
 		case string:
 			// input is string, while output is not, maybe it's []byte ([]uint8)
 			switch outVal.Interface().(type) {
@@ -435,21 +437,21 @@ func (f *BaseField) unmarshal(
 			}
 		default:
 			// not compatible, check if assignable
-			if err := checkAssignable(yamlKey, inRV, outVal); err != nil {
+			if err := checkAssignable(yamlKey, in, outVal); err != nil {
 				return err
 			}
 
-			outVal.Set(inRV)
+			outVal.Set(in)
 			return nil
 		}
 	}
 }
 
 // unmarshalRaw unmarshals interface{} type value to outVal
-func (f *BaseField) unmarshalRaw(in *alterInterface, outVal reflect.Value) error {
+func (f *BaseField) unmarshalRaw(in, outVal reflect.Value) error {
 	tryInit(outVal, f.ifaceTypeHandler)
 
-	dataBytes, err := yaml.Marshal(in)
+	dataBytes, err := yaml.Marshal(in.Interface())
 	if err != nil {
 		return fmt.Errorf(
 			"rs: failed to marshal back yaml for %q: %w",
@@ -475,8 +477,7 @@ func (f *BaseField) unmarshalRaw(in *alterInterface, outVal reflect.Value) error
 // unmarshalInterface handles interface type creation
 func (f *BaseField) unmarshalInterface(
 	yamlKey string,
-	in *alterInterface,
-	outVal reflect.Value,
+	in, outVal reflect.Value,
 	keepOld bool,
 ) (bool, error) {
 	if f.ifaceTypeHandler == nil {
@@ -513,15 +514,15 @@ func (f *BaseField) unmarshalInterface(
 	return true, f.unmarshal(yamlKey, in, val, keepOld)
 }
 
-func (f *BaseField) unmarshalArray(yamlKey string, in *alterInterface, outVal reflect.Value) error {
-	if in.sliceData == nil && in.HasValue() {
+func (f *BaseField) unmarshalArray(yamlKey string, in, outVal reflect.Value) error {
+	if ik := in.Kind(); ik != reflect.Slice && ik != reflect.Array {
 		return fmt.Errorf(
-			"unexpected non array data (%T) of yaml field %q for %s",
-			in.Value(), yamlKey, outVal.Type().String(),
+			"unexpected non array data (%q) of yaml field %q for %s",
+			in.String(), yamlKey, outVal.Type().String(),
 		)
 	}
 
-	size := len(in.sliceData)
+	size := in.Len()
 	if size != outVal.Len() {
 		return fmt.Errorf(
 			"array size not match for %s: want %d got %d",
@@ -533,7 +534,7 @@ func (f *BaseField) unmarshalArray(yamlKey string, in *alterInterface, outVal re
 		itemVal := outVal.Index(i)
 
 		err := f.unmarshal(
-			yamlKey, in.sliceData[i], itemVal,
+			yamlKey, in.Index(i), itemVal,
 			// always drop existing inner data
 			// (actually doesn't matter since it's new)
 			false,
@@ -549,22 +550,22 @@ func (f *BaseField) unmarshalArray(yamlKey string, in *alterInterface, outVal re
 	return nil
 }
 
-func (f *BaseField) unmarshalSlice(yamlKey string, in *alterInterface, outVal reflect.Value, keepOld bool) error {
-	if in.sliceData == nil && in.HasValue() {
+func (f *BaseField) unmarshalSlice(yamlKey string, in, outVal reflect.Value, keepOld bool) error {
+	if in.Kind() != reflect.Slice {
 		return fmt.Errorf(
-			"unexpected non slice data (%T) of yaml field %q for %s",
-			in.Value(), yamlKey, outVal.Type().String(),
+			"unexpected non slice data (%q) of yaml field %q for %s",
+			in.String(), yamlKey, outVal.Type().String(),
 		)
 	}
 
-	size := len(in.sliceData)
+	size := in.Len()
 	sliceVal := reflect.MakeSlice(outVal.Type(), size, size)
 
 	for i := 0; i < size; i++ {
 		itemVal := sliceVal.Index(i)
 
 		err := f.unmarshal(
-			yamlKey, in.sliceData[i], itemVal,
+			yamlKey, in.Index(i), itemVal,
 			// always drop existing inner data
 			// (actually doesn't matter since it's new)
 			false,
@@ -590,11 +591,11 @@ func (f *BaseField) unmarshalSlice(yamlKey string, in *alterInterface, outVal re
 	return nil
 }
 
-func (f *BaseField) unmarshalMap(yamlKey string, in *alterInterface, outVal reflect.Value, keepOld bool) error {
-	if in.mapData == nil && in.HasValue() {
+func (f *BaseField) unmarshalMap(yamlKey string, in, outVal reflect.Value, keepOld bool) error {
+	if in.Kind() != reflect.Map {
 		return fmt.Errorf(
-			"unexpected non map data (%T) of yaml field %q for %s",
-			in.Value(), yamlKey, outVal.Type().String(),
+			"unexpected non map data (%q) of yaml field %q for %s",
+			in.String(), yamlKey, outVal.Type().String(),
 		)
 	}
 
@@ -612,7 +613,9 @@ func (f *BaseField) unmarshalMap(yamlKey string, in *alterInterface, outVal refl
 		}
 	}
 
-	for k, v := range in.mapData {
+	iter := in.MapRange()
+	for iter.Next() {
+		k, v := iter.Key().String(), iter.Value()
 		// since indexed map value is not addressable
 		// we have to keep the original data in BaseField cache
 
