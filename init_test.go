@@ -7,22 +7,23 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var _ Field = (*testFieldStruct)(nil)
-
-type testFieldStruct struct {
-	BaseField
-
-	Foo string `yaml:"foo"`
-}
-
-type testFieldPtr struct {
-	*BaseField
-
-	Foo string `yaml:"foo"`
-}
-
 func TestInit(t *testing.T) {
+	type testFieldStruct struct {
+		BaseField
+
+		Foo string `yaml:"foo"`
+	}
+
+	var _ Field = (*testFieldStruct)(nil)
+
 	fStruct := &testFieldStruct{}
+
+	type testFieldPtr struct {
+		*BaseField
+
+		Foo string `yaml:"foo"`
+	}
+
 	fPtr1 := testFieldPtr{}
 	fPtr2 := &testFieldPtr{}
 

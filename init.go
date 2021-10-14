@@ -77,6 +77,7 @@ func Init(in Field, h InterfaceTypeHandler) Field {
 	return in
 }
 
+// InitRecursively trys to call Init on all fields implementing Field interface
 func InitRecursively(fv reflect.Value, h InterfaceTypeHandler) {
 	switch fv.Type() {
 	case baseFieldPtrType, baseFieldStructType:
