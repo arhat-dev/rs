@@ -3,8 +3,22 @@ foo@!:
   merge:
   - value@echo:
     - b
+  - value@echo: |-
+      - c
+      - d
+bar@!:
+  value: [a]
+  merge:
   - value@echo:
-    - c
-    - d
+    - b@add-suffix-test: b
+  - value@echo: |-
+      - c@?str:
+          d: e
+  - value@echo:
 ---
 foo: [a, b, c, d]
+bar:
+- a
+- b: b-test
+- c: |
+    d: e

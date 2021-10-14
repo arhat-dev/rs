@@ -324,10 +324,7 @@ func (f *BaseField) resolvePatchSpec(
 		)
 	}
 
-	if patchSpec.Value != nil {
-		value = convertAnyObjectToAlterInterface(patchSpec.Value)
-	}
-
+	value = convertAnyObjectToAlterInterface(&patchSpec.Value)
 	return patchSpec, value, nil
 }
 

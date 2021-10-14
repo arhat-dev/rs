@@ -99,7 +99,7 @@ func createMergeValue(t *testing.T, i interface{}) []MergeSource {
 		return nil
 	}
 
-	return []MergeSource{{Value: ret}}
+	return []MergeSource{{Value: *ret}}
 }
 
 func createExpectedYamlValue(t *testing.T, i interface{}) string {
