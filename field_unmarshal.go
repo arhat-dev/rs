@@ -512,24 +512,23 @@ func (f *BaseField) unmarshalInterface(
 func (f *BaseField) unmarshalArray(yamlKey string, in, outVal reflect.Value) error {
 	if ik := in.Kind(); ik != reflect.Slice && ik != reflect.Array {
 		return fmt.Errorf(
-			"unexpected non array data (%q) of yaml field %q for %s",
-			in.String(), yamlKey, outVal.Type().String(),
+			"unexpected non array data (%v) of yaml field %q for %s",
+			in.Interface(), yamlKey, outVal.Type().String(),
 		)
 	}
 
 	size := in.Len()
-	if size != outVal.Len() {
+	expectedSize := outVal.Len()
+	if size < expectedSize {
 		return fmt.Errorf(
 			"array size not match for %s: want %d got %d",
-			outVal.Type().String(), outVal.Len(), size,
+			outVal.Type().String(), expectedSize, size,
 		)
 	}
 
-	for i := 0; i < size; i++ {
-		itemVal := outVal.Index(i)
-
+	for i := 0; i < expectedSize; i++ {
 		err := f.unmarshal(
-			yamlKey, in.Index(i), itemVal,
+			yamlKey, in.Index(i), outVal.Index(i),
 			// always drop existing inner data
 			// (actually doesn't matter since it's new)
 			false,
@@ -546,21 +545,19 @@ func (f *BaseField) unmarshalArray(yamlKey string, in, outVal reflect.Value) err
 }
 
 func (f *BaseField) unmarshalSlice(yamlKey string, in, outVal reflect.Value, keepOld bool) error {
-	if in.Kind() != reflect.Slice {
+	if ik := in.Kind(); ik != reflect.Slice && ik != reflect.Array {
 		return fmt.Errorf(
-			"unexpected non slice data (%q) of yaml field %q for %s",
-			in.String(), yamlKey, outVal.Type().String(),
+			"unexpected non slice data (%v) of yaml field %q for %s",
+			in.Interface(), yamlKey, outVal.Type().String(),
 		)
 	}
 
 	size := in.Len()
-	sliceVal := reflect.MakeSlice(outVal.Type(), size, size)
+	tmpVal := reflect.MakeSlice(outVal.Type(), size, size)
 
 	for i := 0; i < size; i++ {
-		itemVal := sliceVal.Index(i)
-
 		err := f.unmarshal(
-			yamlKey, in.Index(i), itemVal,
+			yamlKey, in.Index(i), tmpVal.Index(i),
 			// always drop existing inner data
 			// (actually doesn't matter since it's new)
 			false,
@@ -573,14 +570,14 @@ func (f *BaseField) unmarshalSlice(yamlKey string, in, outVal reflect.Value, kee
 		}
 	}
 
-	if err := checkAssignable(yamlKey, sliceVal, outVal); err != nil {
+	if err := checkAssignable(yamlKey, tmpVal, outVal); err != nil {
 		return err
 	}
 
 	if outVal.IsZero() || !keepOld {
-		outVal.Set(sliceVal)
+		outVal.Set(tmpVal)
 	} else {
-		outVal.Set(reflect.AppendSlice(outVal, sliceVal))
+		outVal.Set(reflect.AppendSlice(outVal, tmpVal))
 	}
 
 	return nil
@@ -589,8 +586,8 @@ func (f *BaseField) unmarshalSlice(yamlKey string, in, outVal reflect.Value, kee
 func (f *BaseField) unmarshalMap(yamlKey string, in, outVal reflect.Value, keepOld bool) error {
 	if in.Kind() != reflect.Map {
 		return fmt.Errorf(
-			"unexpected non map data (%q) of yaml field %q for %s",
-			in.String(), yamlKey, outVal.Type().String(),
+			"unexpected non map data (%v) of yaml field %q for %s",
+			in.Interface(), yamlKey, outVal.Type().String(),
 		)
 	}
 
