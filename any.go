@@ -57,6 +57,8 @@ type AnyObject struct {
 // should be called after fields being resolved
 func (o *AnyObject) NormalizedValue() interface{} {
 	switch {
+	case o == nil:
+		return nil
 	case o.mapData != nil:
 		return o.mapData.NormalizedValue()
 	case o.sliceData != nil:

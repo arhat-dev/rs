@@ -270,14 +270,9 @@ func (f *BaseField) UnmarshalYAML(n *yaml.Node) error {
 				}
 			}
 
-			var val interface{}
-			if v != nil {
-				val = v.NormalizedValue()
-			}
-
 			err = f.unmarshal(
 				yamlKey,
-				reflect.ValueOf(val),
+				reflect.ValueOf(v.NormalizedValue()),
 				fSpec.fieldValue,
 				fSpec.isCatchOther,
 			)
