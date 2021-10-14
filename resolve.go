@@ -349,6 +349,7 @@ const (
 	TypeHintObject
 	TypeHintObjects
 	TypeHintInt
+	TypeHintUint
 	TypeHintFloat
 )
 
@@ -366,6 +367,8 @@ func (h TypeHint) String() string {
 		return "obj"
 	case TypeHintInt:
 		return "int"
+	case TypeHintUint:
+		return "uint"
 	case TypeHintFloat:
 		return "float"
 	default:
@@ -387,6 +390,8 @@ func ParseTypeHint(h string) (TypeHint, error) {
 		return TypeHintObject, nil
 	case "int":
 		return TypeHintInt, nil
+	case "uint":
+		return TypeHintUint, nil
 	case "float":
 		return TypeHintFloat, nil
 	default:
@@ -587,8 +592,7 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (*alterInterface, error) {
 			return &alterInterface{
 				scalarData: int(intV),
 			}, nil
-		case int, int8, int16, int32, int64,
-			uint, uint8, uint16, uint32, uint64, uintptr:
+		case int, int8, int16, int32, int64:
 			return v, nil
 		default:
 			rv := reflect.ValueOf(v.NormalizedValue())
@@ -596,6 +600,67 @@ func applyTypeHint(hint TypeHint, v *alterInterface) (*alterInterface, error) {
 			case reflect.Float32, reflect.Float64:
 				return &alterInterface{
 					scalarData: int(rv.Float()),
+				}, nil
+			case reflect.Uint, reflect.Uint8, reflect.Uint16,
+				reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+				return &alterInterface{
+					scalarData: int(rv.Uint()),
+				}, nil
+			default:
+				return nil, fmt.Errorf(
+					"incompatible type %T as number", vt,
+				)
+			}
+		}
+	case TypeHintUint:
+		switch vt := v.scalarData.(type) {
+		case []byte:
+			strV, err := strconv.Unquote(string(vt))
+			if err != nil {
+				strV = string(vt)
+			}
+
+			uintV, err := strconv.ParseUint(strV, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf(
+					"failed to unmarshal bytes %q as uint: %w",
+					string(vt), err,
+				)
+			}
+
+			return &alterInterface{
+				scalarData: uint(uintV),
+			}, nil
+		case string:
+			strV, err := strconv.Unquote(vt)
+			if err != nil {
+				strV = vt
+			}
+
+			uintV, err := strconv.ParseUint(strV, 10, 64)
+			if err != nil {
+				return nil, fmt.Errorf(
+					"failed to unmarshal string %q as uint: %w",
+					vt, err,
+				)
+			}
+
+			return &alterInterface{
+				scalarData: uint(uintV),
+			}, nil
+		case uint, uint8, uint16, uint32, uint64, uintptr:
+			return v, nil
+		default:
+			rv := reflect.ValueOf(v.NormalizedValue())
+			switch vk := rv.Kind(); vk {
+			case reflect.Float32, reflect.Float64:
+				return &alterInterface{
+					scalarData: uint(rv.Float()),
+				}, nil
+			case reflect.Int, reflect.Int8, reflect.Int16,
+				reflect.Int32, reflect.Int64:
+				return &alterInterface{
+					scalarData: uint(rv.Int()),
 				}, nil
 			default:
 				return nil, fmt.Errorf(

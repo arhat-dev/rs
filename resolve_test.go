@@ -162,20 +162,32 @@ func TestApplyTypeHint(t *testing.T) {
 		{
 			name:     "Int from string",
 			hint:     "int",
-			value:    "10",
-			expected: int(10),
+			value:    "-10",
+			expected: int(-10),
 		},
 		{
 			name:     "Int from bytes",
 			hint:     "int",
-			value:    []byte(`"10"`),
-			expected: int(10),
+			value:    []byte(`"-10"`),
+			expected: int(-10),
 		},
 		{
 			name:     "Int from int",
 			hint:     "int",
-			value:    int64(10),
-			expected: int64(10),
+			value:    int64(-10),
+			expected: int64(-10),
+		},
+		{
+			name:     "Int from uint",
+			hint:     "int",
+			value:    uint64(10),
+			expected: int(10),
+		},
+		{
+			name:     "Int from float",
+			hint:     "int",
+			value:    float64(10.1),
+			expected: int(10),
 		},
 		{
 			name:      "Int from slice",
@@ -183,10 +195,44 @@ func TestApplyTypeHint(t *testing.T) {
 			value:     []string{"foo", "bar"},
 			expectErr: true,
 		},
+
+		//
+		// Hint `uint`
+		//
 		{
-			name:      "Int from map",
-			hint:      "int",
-			value:     map[string]string{"foo": "bar"},
+			name:     "Uint from string",
+			hint:     "uint",
+			value:    "10",
+			expected: uint(10),
+		},
+		{
+			name:     "Uint from bytes",
+			hint:     "uint",
+			value:    []byte(`"10"`),
+			expected: uint(10),
+		},
+		{
+			name:     "Uint from uint",
+			hint:     "uint",
+			value:    uint64(10),
+			expected: uint64(10),
+		},
+		{
+			name:     "Uint from int",
+			hint:     "uint",
+			value:    int(10),
+			expected: uint(10),
+		},
+		{
+			name:     "Uint from float",
+			hint:     "uint",
+			value:    float32(10.1),
+			expected: uint(10),
+		},
+		{
+			name:      "Uint from slice",
+			hint:      "uint",
+			value:     []string{"foo", "bar"},
 			expectErr: true,
 		},
 
@@ -209,6 +255,12 @@ func TestApplyTypeHint(t *testing.T) {
 			name:     "Float from int",
 			hint:     "float",
 			value:    int64(10),
+			expected: float64(10),
+		},
+		{
+			name:     "Float from uint",
+			hint:     "float",
+			value:    uint64(10),
 			expected: float64(10),
 		},
 		{
