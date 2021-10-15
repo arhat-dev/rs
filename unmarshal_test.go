@@ -28,11 +28,13 @@ func TestBaseField_UnmarshalYAML(t *testing.T) {
 	}
 
 	tests := []struct {
-		name                string
-		yaml                string
-		expectedUnmarshaled interface{}
+		name string
+		yaml string
 
-		expectedResolved interface{}
+		expectedUnmarshaled interface{}
+		expectedResolved    interface{}
+
+		expectUnmarshalErr bool
 	}{
 		{
 			name: "basic",
@@ -75,7 +77,7 @@ bool_ptr: null
 			expectedUnmarshaled: &testFieldStruct{
 				BaseField: BaseField{
 					unresolvedFields: map[unresolvedFieldKey]*unresolvedFieldValue{
-						{yamlKey: "str", suffix: "add-suffix-test"}: {
+						{yamlKey: "str"}: {
 							fieldName:   "Str",
 							fieldValue:  reflect.Value{},
 							rawDataList: []*alterInterface{{scalarData: "bar"}},
@@ -87,7 +89,13 @@ bool_ptr: null
 			},
 		},
 		{
-			name: "catchAll+renderer",
+			name: "catchAll same yaml key + renderer",
+			yaml: `{other@echo: foo, other@echo|echo: bar}`,
+
+			expectUnmarshalErr: true,
+		},
+		{
+			name: "catchAll different yaml key + renderer",
 			yaml: `{ other_field_1@echo: foo, other_field_2@add-suffix-test: bar }`,
 
 			expectedResolved: &testFieldStruct{
@@ -104,7 +112,7 @@ bool_ptr: null
 					},
 					catchOtherCache: nil,
 					unresolvedFields: map[unresolvedFieldKey]*unresolvedFieldValue{
-						{yamlKey: "other_field_1", suffix: "echo"}: {
+						{yamlKey: "other_field_1"}: {
 							fieldName:  "Other",
 							fieldValue: reflect.Value{},
 							rawDataList: []*alterInterface{
@@ -117,7 +125,7 @@ bool_ptr: null
 							renderers:         []*suffixSpec{{name: "echo"}},
 							isCatchOtherField: true,
 						},
-						{yamlKey: "other_field_2", suffix: "add-suffix-test"}: {
+						{yamlKey: "other_field_2"}: {
 							fieldName:  "Other",
 							fieldValue: reflect.Value{},
 							rawDataList: []*alterInterface{{
@@ -161,7 +169,7 @@ array@echo|echo|echo: |-
 				InlineWithBaseField: inlineStructWithBaseField{
 					BaseField: BaseField{
 						unresolvedFields: map[unresolvedFieldKey]*unresolvedFieldValue{
-							{yamlKey: "string_map", suffix: "echo|echo"}: {
+							{yamlKey: "string_map"}: {
 								fieldName:  "StringMap",
 								fieldValue: reflect.Value{},
 								rawDataList: []*alterInterface{{
@@ -172,7 +180,7 @@ array@echo|echo|echo: |-
 									{name: "echo"},
 								},
 							},
-							{yamlKey: "array", suffix: "echo|echo|echo"}: {
+							{yamlKey: "array"}: {
 								fieldName:  "Array",
 								fieldValue: reflect.Value{},
 								rawDataList: []*alterInterface{{
@@ -201,7 +209,13 @@ array@echo|echo|echo: |-
 				out := Init(&testFieldStruct{}, nil).(*testFieldStruct)
 				assert.EqualValues(t, 1, out._initialized)
 
-				if !assert.NoError(t, yaml.Unmarshal([]byte(test.yaml), out)) {
+				err := yaml.Unmarshal([]byte(test.yaml), out)
+				if test.expectUnmarshalErr {
+					assert.Error(t, err)
+					return
+				}
+
+				if !assert.NoError(t, err) {
 					return
 				}
 
@@ -222,6 +236,10 @@ array@echo|echo|echo: |-
 				assert.EqualValues(t, test.expectedUnmarshaled, out)
 			})
 
+			if test.expectUnmarshalErr {
+				return
+			}
+
 			t.Run("resolve", func(t *testing.T) {
 				out := Init(&testFieldStruct{}, nil).(*testFieldStruct)
 				assert.EqualValues(t, 1, out._initialized)
@@ -240,6 +258,28 @@ array@echo|echo|echo: |-
 			})
 		})
 	}
+}
+
+func TestBaseField_UnmarshalYAML_Mixed_CatchOther(t *testing.T) {
+	type Foo struct {
+		BaseField
+
+		Data map[string]string `rs:"other"`
+	}
+
+	a := Init(&Foo{}, nil).(*Foo)
+	assert.NoError(t, yaml.Unmarshal([]byte(`{ a: a, b@echo: b, c: c }`), a))
+	assert.EqualValues(t, map[string]string{
+		"a": "a",
+		"c": "c",
+	}, a.Data)
+
+	assert.NoError(t, a.ResolveFields(&testRenderingHandler{}, -1))
+	assert.EqualValues(t, map[string]string{
+		"a": "a",
+		"b": "b",
+		"c": "c",
+	}, a.Data)
 }
 
 func TestBaseField_UnmarshalYAML_Init(t *testing.T) {

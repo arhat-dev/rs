@@ -25,11 +25,7 @@ type BaseField struct {
 type (
 	// TODO: make field name as key
 	unresolvedFieldKey struct {
-		// NOTE: put `suffix` and `yamlKey` in key is to support fields with
-		// 		 `rs:"other"` field tag, each item should be able
-		// 		 to have its own renderer
 		yamlKey string
-		suffix  string
 	}
 
 	unresolvedFieldValue struct {
@@ -60,7 +56,6 @@ func (f *BaseField) addUnresolvedField(
 	key := unresolvedFieldKey{
 		// yamlKey@suffix: ...
 		yamlKey: yamlKey,
-		suffix:  suffix,
 	}
 
 	if isCatchOtherField {
@@ -72,6 +67,12 @@ func (f *BaseField) addUnresolvedField(
 	}
 
 	if old, exists := f.unresolvedFields[key]; exists {
+		// TODO: no idea how can this happen, the key suggests this can only
+		// 	     happen when there are duplicate yaml keys, which is invalid yaml
+		//       go-yaml should errored before we add this
+		// 		 so this is considered as unreachable code
+
+		// unreachable
 		old.rawDataList = append(old.rawDataList, rawData)
 		return
 	}
@@ -128,3 +129,30 @@ func parseRenderingSuffix(rs string) []*suffixSpec {
 
 	return ret
 }
+
+// TODO: shall we generate type hint for those without one?
+// func generateTypeHintForType(typ reflect.Type) TypeHint {
+// 	switch typ.Kind() {
+// 	case reflect.Int, reflect.Int8, reflect.Int16,
+// 		reflect.Int32, reflect.Int64:
+// 		return TypeHintInt
+// 	case reflect.Uint, reflect.Uint8, reflect.Uint16,
+// 		reflect.Uint32, reflect.Uint64, reflect.Uintptr:
+// 		return TypeHintInt
+// 	case reflect.Float32, reflect.Float64:
+// 		return TypeHintFloat
+// 	case reflect.String:
+// 		return TypeHintStr
+// 	case reflect.Array, reflect.Slice:
+// 		switch typ.Elem().Kind() {
+// 		case reflect.Uint8:
+// 			return TypeHintBytes
+// 		default:
+// 			return TypeHintObjects
+// 		}
+// 	case reflect.Map, reflect.Struct:
+// 		return TypeHintObject
+// 	default:
+// 		return TypeHintNone
+// 	}
+// }

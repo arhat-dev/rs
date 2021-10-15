@@ -18,6 +18,151 @@ func createExpectedJSONValue(t *testing.T, i interface{}) string {
 	return string(data)
 }
 
+func TestAnyObject_NormalizedValue(t *testing.T) {
+	t.Run("nil", func(t *testing.T) {
+		var obj *AnyObject
+
+		t.Run("normalized", func(t *testing.T) {
+			assert.Nil(t, obj.NormalizedValue())
+		})
+
+		t.Run("raw", func(t *testing.T) {
+			assert.Nil(t, obj.value())
+		})
+	})
+
+	t.Run("map-not-set", func(t *testing.T) {
+		obj := &AnyObject{
+			mapData: &AnyObjectMap{
+				Data: nil,
+			},
+		}
+		t.Run("normalized", func(t *testing.T) {
+			assert.Nil(t, obj.NormalizedValue())
+			assert.IsType(t, map[string]interface{}{}, obj.NormalizedValue())
+		})
+		t.Run("raw", func(t *testing.T) {
+			assert.NotNil(t, obj.value())
+			assert.IsType(t, &AnyObjectMap{}, obj.value())
+		})
+	})
+
+	t.Run("map-not-nil", func(t *testing.T) {
+		obj := &AnyObject{
+			mapData: &AnyObjectMap{
+				Data: map[string]*AnyObject{},
+			},
+		}
+		t.Run("normalized", func(t *testing.T) {
+			assert.NotNil(t, obj.NormalizedValue())
+			assert.IsType(t, map[string]interface{}{}, obj.NormalizedValue())
+		})
+		t.Run("raw", func(t *testing.T) {
+			assert.NotNil(t, obj.value())
+			assert.IsType(t, &AnyObjectMap{}, obj.value())
+		})
+	})
+
+	t.Run("slice-not-nil", func(t *testing.T) {
+		obj := &AnyObject{
+			sliceData: []*AnyObject{},
+		}
+
+		t.Run("normalized", func(t *testing.T) {
+			assert.NotNil(t, obj.NormalizedValue())
+			assert.IsType(t, []interface{}{}, obj.NormalizedValue())
+		})
+		t.Run("raw", func(t *testing.T) {
+			assert.NotNil(t, obj.value())
+			assert.IsType(t, []*AnyObject{}, obj.value())
+		})
+	})
+
+	t.Run("original-node", func(t *testing.T) {
+		obj := &AnyObject{
+			originalNode: &yaml.Node{},
+			scalarData:   1.1,
+		}
+		t.Run("normalized", func(t *testing.T) {
+			assert.NotNil(t, obj.NormalizedValue())
+			assert.IsType(t, 1.1, obj.NormalizedValue())
+		})
+		t.Run("raw", func(t *testing.T) {
+			assert.NotNil(t, obj.value())
+			assert.IsType(t, &yaml.Node{}, obj.value())
+		})
+	})
+
+	t.Run("scalar-not-nil", func(t *testing.T) {
+		obj := &AnyObject{
+			scalarData: "test",
+		}
+		t.Run("normalized", func(t *testing.T) {
+			assert.NotNil(t, obj.NormalizedValue())
+			assert.IsType(t, "", obj.NormalizedValue())
+		})
+		t.Run("raw", func(t *testing.T) {
+			assert.NotNil(t, obj.value())
+			assert.IsType(t, "", obj.value())
+		})
+	})
+}
+
+func TestAnyObject_UnmarshalYAML(t *testing.T) {
+	tests := []struct {
+		name string
+
+		input    string
+		expected interface{}
+	}{
+		{
+			name:  "map",
+			input: `foo: test`,
+			expected: &AnyObject{
+				mapData: &AnyObjectMap{
+					Data: map[string]*AnyObject{
+						"foo": {scalarData: "test"},
+					},
+				},
+			},
+		},
+		{
+			name:  "seq",
+			input: `[test, test]`,
+			expected: &AnyObject{
+				sliceData: []*AnyObject{
+					{scalarData: "test"},
+					{scalarData: "test"},
+				},
+			},
+		},
+		{
+			name:  "str",
+			input: `test`,
+			expected: &AnyObject{
+				scalarData: "test",
+			},
+		},
+		{
+			name:  "binary",
+			input: `!!binary dGVzdA==`,
+			expected: &AnyObject{
+				scalarData: "dGVzdA==",
+			},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			out := Init(&AnyObject{}, nil).(*AnyObject)
+			assert.NoError(t, yaml.Unmarshal([]byte(test.input), out))
+			unsetAnyObjectBaseField(out)
+
+			assert.EqualValues(t, test.expected, out)
+		})
+	}
+}
+
 func TestAnyObject(t *testing.T) {
 	tests := []struct {
 		name  string
@@ -228,7 +373,7 @@ func TestAnyObject(t *testing.T) {
 }
 
 func TestAnyObject_WithHint(t *testing.T) {
-	testUsingYamlSpecs(t, "testdata/anyobject-hint")
+	testAnyObjectUnmarshalAndResolveByYamlSpecs(t, "testdata/anyobject-hint")
 }
 
 func unsetAnyObjectBaseField(obj *AnyObject) {

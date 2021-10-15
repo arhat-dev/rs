@@ -6,6 +6,8 @@ import (
 )
 
 // Inherit unresolved fields from another BaseField
+// useful when you are merging two structs and want to resolve only once
+// to get all unresolved fields set
 //
 // after a successful function call, f wiil be able to resolve its struct fields
 // with unresolved values from b and its own

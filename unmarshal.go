@@ -358,6 +358,9 @@ func (f *BaseField) unmarshal(
 	outKind := outVal.Kind()
 
 	if !outVal.IsValid() {
+		// no way to know what value we can set
+		// NOTE: this should not happen unless user called yaml.Unmarshal with
+		// 	     something nil as out
 		return fmt.Errorf("invalid nil unmarshal target")
 	}
 
@@ -379,8 +382,9 @@ func (f *BaseField) unmarshal(
 
 	switch outKind {
 	case reflect.Invalid:
-		// no way to know what value we can set
-		// NOTE: this should not happen when unmarshaling, shall we panic instead?
+		// TODO: this should not happen since we have already checked outVal.IsValid before
+
+		// unreachable code
 		return fmt.Errorf("unexpected nil out value for yaml key %q", yamlKey)
 	case reflect.Array:
 		return f.unmarshalArray(yamlKey, in, outVal)
@@ -410,6 +414,8 @@ func (f *BaseField) unmarshal(
 			return nil
 		}
 
+		// not same kind, try to convert form input value
+		// currently we only
 		switch vt := in.Interface().(type) {
 		case string:
 			// input is string, while output is not, maybe it's []byte ([]uint8)

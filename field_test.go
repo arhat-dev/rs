@@ -38,7 +38,7 @@ func (h *testRenderingHandler) RenderYaml(renderer string, data interface{}) (re
 	panic(fmt.Errorf("unexpected renderer name: %q", h))
 }
 
-func testUsingYamlSpecs(t *testing.T, specDirPath string) {
+func testAnyObjectUnmarshalAndResolveByYamlSpecs(t *testing.T, specDirPath string) {
 	filepath.WalkDir(specDirPath, func(path string, d fs.DirEntry, _ error) error {
 		if d.IsDir() {
 			return nil
