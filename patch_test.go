@@ -221,5 +221,5 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 }
 
 func TestPatchSpec(t *testing.T) {
-	testUsingYamlSpecs(t, "testdata/patch-spec")
+	testAnyObjectUnmarshalAndResolveByYamlSpecs(t, "testdata/patch-spec")
 }

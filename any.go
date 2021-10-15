@@ -45,8 +45,23 @@ func (o *AnyObject) NormalizedValue() interface{} {
 	}
 }
 
-func (o *AnyObject) MarshalYAML() (interface{}, error) { return o.NormalizedValue(), nil }
-func (o *AnyObject) MarshalJSON() ([]byte, error)      { return json.Marshal(o.NormalizedValue()) }
+func (o *AnyObject) value() interface{} {
+	switch {
+	case o == nil:
+		return nil
+	case o.mapData != nil:
+		return o.mapData
+	case o.sliceData != nil:
+		return o.sliceData
+	case o.originalNode != nil:
+		return o.originalNode
+	default:
+		return o.scalarData
+	}
+}
+
+func (o *AnyObject) MarshalYAML() (interface{}, error) { return o.value(), nil }
+func (o *AnyObject) MarshalJSON() ([]byte, error)      { return json.Marshal(o.value()) }
 
 func (o *AnyObject) UnmarshalYAML(n *yaml.Node) error {
 	switch n.Kind {
@@ -69,6 +84,7 @@ func (o *AnyObject) UnmarshalYAML(n *yaml.Node) error {
 		}
 		return nil
 	default:
+		// unreachable
 		return n.Decode(&o.scalarData)
 	}
 }
