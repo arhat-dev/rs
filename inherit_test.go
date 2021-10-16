@@ -8,168 +8,188 @@ import (
 )
 
 func TestBaseField_Inherit(t *testing.T) {
-	// TODO: add tests
-	t.Run("both-empty", func(t *testing.T) {
-		type Foo struct {
-			BaseField
+	type Foo struct {
+		BaseField
 
-			Data string `yaml:"data"`
-		}
+		Data  string            `yaml:"data"`
+		Other map[string]string `rs:"other"`
+	}
 
-		a := Init(&Foo{}, nil).(*Foo)
-		b := Init(&Foo{}, nil).(*Foo)
-		assert.NoError(t, a.Inherit(&b.BaseField))
-	})
+	tests := []struct {
+		name string
 
-	t.Run("empty-inherit-some", func(t *testing.T) {
-		type Foo struct {
-			BaseField
+		a *Foo
+		b *Foo
 
-			Data string `yaml:"data"`
-		}
+		unresolvedCount int
+	}{
+		{
+			name: "Both Empty",
 
-		empty := Init(&Foo{}, nil).(*Foo)
-		some := Init(&Foo{}, nil).(*Foo)
-		some.addUnresolvedField("data", "test", "Data",
-			some._parentValue.FieldByName("Data"), false,
-			&alterInterface{scalarData: "test-data"},
-		)
+			a: &Foo{},
+			b: &Foo{},
 
-		assert.NoError(t, empty.Inherit(&some.BaseField))
+			unresolvedCount: 0,
+		},
+		{
+			name: "Empty Inherit Some",
 
-		assert.NotEqualValues(t, some._parentValue, empty._parentValue)
-		assert.EqualValues(t,
-			empty._parentValue.FieldByName("Data"),
-			empty.unresolvedFields[unresolvedFieldKey{yamlKey: "data"}].fieldValue,
-		)
+			a: &Foo{},
+			b: func() *Foo {
+				v := Init(&Foo{}, nil).(*Foo)
+				v.addUnresolvedField("data", "test", "Data",
+					v._parentValue.FieldByName("Data"), false,
+					&alterInterface{scalarData: "value-b"},
+				)
+				return v
+			}(),
 
-		empty.unresolvedFields[unresolvedFieldKey{yamlKey: "data"}].fieldValue = some._parentValue.FieldByName("Data")
-		some._parentValue = empty._parentValue
-		assert.EqualValues(t, empty, some)
-	})
+			unresolvedCount: 1,
+		},
+		{
+			name: "Some Inherit Some",
 
-	t.Run("some-inherit-some", func(t *testing.T) {
-		type Foo struct {
-			BaseField
+			a: func() *Foo {
+				v := Init(&Foo{}, nil).(*Foo)
+				v.addUnresolvedField("data", "test", "Data",
+					v._parentValue.FieldByName("Data"), false,
+					&alterInterface{scalarData: "value-a"},
+				)
+				return v
+			}(),
+			b: func() *Foo {
+				v := Init(&Foo{}, nil).(*Foo)
+				v.addUnresolvedField("data", "test", "Data",
+					v._parentValue.FieldByName("Data"), false,
+					&alterInterface{scalarData: "value-b"},
+				)
+				return v
+			}(),
 
-			Data string `yaml:"data"`
-		}
+			unresolvedCount: 1,
+		},
+		{
+			name: "Catch Other Empty Inherit Some With Cache",
 
-		a := Init(&Foo{}, nil).(*Foo)
-		a.addUnresolvedField("data", "test", "Data",
-			a._parentValue.FieldByName("Data"), false,
-			&alterInterface{scalarData: "test-data"})
-		b := Init(&Foo{}, nil).(*Foo)
-		b.addUnresolvedField("data", "test", "Data",
-			b._parentValue.FieldByName("Data"), false,
-			&alterInterface{scalarData: "test-data"},
-		)
+			a: &Foo{},
+			b: func() *Foo {
+				v := Init(&Foo{}, nil).(*Foo)
+				v.addUnresolvedField("b", "test", "Data",
+					v._parentValue.FieldByName("Data"), true,
+					&alterInterface{
+						mapData: map[string]*alterInterface{
+							"data": {scalarData: "test-data"},
+						},
+					},
+				)
+				v.catchOtherCache = map[string]reflect.Value{
+					"a": reflect.ValueOf("cache-value"),
+				}
 
-		assert.NoError(t, a.Inherit(&b.BaseField))
+				return v
+			}(),
 
-		assert.NotEqualValues(t, b._parentValue, a._parentValue)
-		assert.EqualValues(t,
-			a._parentValue.FieldByName("Data"),
-			a.unresolvedFields[unresolvedFieldKey{yamlKey: "data"}].fieldValue,
-		)
+			unresolvedCount: 1,
+		},
+		{
+			name: "Catch Other Some Inherit Some No Cache",
 
-		// set subtle values in a as they are in b
-		a.unresolvedFields[unresolvedFieldKey{yamlKey: "data"}].fieldValue = b._parentValue.FieldByName("Data")
-		b._parentValue = a._parentValue
-		b.unresolvedFields[unresolvedFieldKey{
-			yamlKey: "data",
-		}].rawDataList = []*alterInterface{
-			{scalarData: "test-data"},
-			{scalarData: "test-data"},
-		}
-		assert.EqualValues(t, a, b)
-	})
+			a: func() *Foo {
+				v := Init(&Foo{}, nil).(*Foo)
+				v.addUnresolvedField("a", "test", "Data",
+					v._parentValue.FieldByName("Data"), true,
+					&alterInterface{
+						mapData: map[string]*alterInterface{
+							"a": {scalarData: "test-data"},
+						},
+					},
+				)
+				return v
+			}(),
+			b: func() *Foo {
+				v := Init(&Foo{}, nil).(*Foo)
+				v.addUnresolvedField("b", "test", "Data",
+					v._parentValue.FieldByName("Data"), true,
+					&alterInterface{
+						mapData: map[string]*alterInterface{
+							"b": {scalarData: "test-data"},
+						},
+					},
+				)
 
-	t.Run("bad-inherit", func(t *testing.T) {
-	})
+				return v
+			}(),
 
-	t.Run("catch-other-empty-inherit-some-with-cache", func(t *testing.T) {
-		type Foo struct {
-			BaseField
+			unresolvedCount: 2,
+		},
+	}
 
-			Data map[string]string `rs:"other"`
-		}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			a := Init(test.a, nil).(*Foo)
+			b := Init(test.b, nil).(*Foo)
 
-		empty := Init(&Foo{}, nil).(*Foo)
-		some := Init(&Foo{}, nil).(*Foo)
-		some.addUnresolvedField("data", "test", "Data",
-			some._parentValue.FieldByName("Data"), true,
-			&alterInterface{
-				mapData: map[string]*alterInterface{
-					"data": {scalarData: "test-data"},
-				},
-			},
-		)
-		some.catchOtherCache = map[string]reflect.Value{
-			"a": reflect.ValueOf("cache-value"),
-		}
+			expectedUnresolvedFields := make(map[string]*unresolvedFieldSpec)
+			expectedCatchOtherCache := make(map[string]reflect.Value)
+			if test.unresolvedCount > 0 {
+				for k, v := range a.unresolvedFields {
+					expectedUnresolvedFields[k] = &unresolvedFieldSpec{
+						fieldName:         v.fieldName,
+						fieldValue:        reflect.Value{},
+						rawDataList:       append([]*alterInterface{}, v.rawDataList...),
+						renderers:         append([]*suffixSpec{}, v.renderers...),
+						isCatchOtherField: v.isCatchOtherField,
+					}
+				}
+			} else {
+				expectedUnresolvedFields = nil
+			}
 
-		assert.NoError(t, empty.Inherit(&some.BaseField))
+			for k, v := range a.catchOtherCache {
+				expectedCatchOtherCache[k] = v
+			}
 
-		assert.NotEqualValues(t, some._parentValue, empty._parentValue)
-		assert.EqualValues(t,
-			empty._parentValue.FieldByName("Data"),
-			empty.unresolvedFields[unresolvedFieldKey{yamlKey: "data"}].fieldValue,
-		)
+			assert.NoError(t, a.Inherit(&b.BaseField))
 
-		empty.unresolvedFields[unresolvedFieldKey{yamlKey: "data"}].fieldValue = some._parentValue.FieldByName("Data")
-		some._parentValue = empty._parentValue
-		assert.EqualValues(t, empty, some)
-	})
+			assert.NotEqualValues(t, a._parentValue, b._parentValue)
+			assert.Len(t, a.unresolvedFields, test.unresolvedCount)
 
-	t.Run("catch-other-some-inherit-some-no-cache", func(t *testing.T) {
-		type Foo struct {
-			BaseField
+			for k, v := range a.unresolvedFields {
+				// value destionation should be redirected to a
+				assert.Equal(t, a._parentValue.FieldByName("Data"), v.fieldValue)
 
-			Data map[string]string `rs:"other"`
-		}
+				// reset for assertion
+				a.unresolvedFields[k].fieldValue = reflect.Value{}
+			}
 
-		a := Init(&Foo{}, nil).(*Foo)
-		a.addUnresolvedField("a", "test", "Data",
-			a._parentValue.FieldByName("Data"), true,
-			&alterInterface{
-				mapData: map[string]*alterInterface{
-					"a": {scalarData: "test-data"},
-				},
-			},
-		)
+			for k, v := range b.unresolvedFields {
+				// reset for assertion
+				if _, ok := expectedUnresolvedFields[k]; ok {
+					expectedUnresolvedFields[k].rawDataList = append(
+						expectedUnresolvedFields[k].rawDataList,
+						v.rawDataList...,
+					)
+				} else {
+					expectedUnresolvedFields[k] = &unresolvedFieldSpec{
+						fieldName:         v.fieldName,
+						fieldValue:        reflect.Value{},
+						rawDataList:       append([]*alterInterface{}, v.rawDataList...),
+						renderers:         append([]*suffixSpec{}, v.renderers...),
+						isCatchOtherField: v.isCatchOtherField,
+					}
+				}
+			}
 
-		b := Init(&Foo{}, nil).(*Foo)
-		b.addUnresolvedField("b", "test", "Data",
-			b._parentValue.FieldByName("Data"), true,
-			&alterInterface{
-				mapData: map[string]*alterInterface{
-					"b": {scalarData: "test-data"},
-				},
-			},
-		)
+			for k, v := range b.catchOtherCache {
+				expectedCatchOtherCache[k] = v
+			}
 
-		assert.NoError(t, a.Inherit(&b.BaseField))
+			if len(expectedCatchOtherCache) == 0 {
+				expectedCatchOtherCache = nil
+			}
 
-		assert.NotEqualValues(t, b._parentValue, a._parentValue)
-		assert.EqualValues(t,
-			a._parentValue.FieldByName("Data"),
-			a.unresolvedFields[unresolvedFieldKey{yamlKey: "b"}].fieldValue,
-		)
-
-		// set subtle values in a as they are in b
-		a.unresolvedFields[unresolvedFieldKey{yamlKey: "a"}].fieldValue = b._parentValue.FieldByName("Data")
-		a.unresolvedFields[unresolvedFieldKey{yamlKey: "b"}].fieldValue = b._parentValue.FieldByName("Data")
-		b.addUnresolvedField("a", "test", "Data",
-			b._parentValue.FieldByName("Data"), true,
-			&alterInterface{
-				mapData: map[string]*alterInterface{
-					"a": {scalarData: "test-data"},
-				},
-			},
-		)
-		b._parentValue = a._parentValue
-
-		assert.EqualValues(t, a, b)
-	})
+			assert.EqualValues(t, expectedUnresolvedFields, a.unresolvedFields)
+			assert.EqualValues(t, expectedCatchOtherCache, a.catchOtherCache)
+		})
+	}
 }

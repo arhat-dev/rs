@@ -8,10 +8,12 @@ import (
 type BaseField struct {
 	_initialized uint32
 
-	// _parentValue represents the parent struct value after being initialized
+	// _parentType and _parentValue represents the parent struct type and value
+	// they are set in Init function call
+	_parentType  reflect.Type
 	_parentValue reflect.Value
 
-	unresolvedFields map[unresolvedFieldKey]*unresolvedFieldValue
+	unresolvedFields map[string]*unresolvedFieldSpec
 
 	ifaceTypeHandler InterfaceTypeHandler
 
@@ -20,23 +22,51 @@ type BaseField struct {
 	catchOtherCache map[string]reflect.Value
 
 	catchOtherFields map[string]struct{}
+
+	// key: yaml tag name or lower case exported field name
+	fields map[string]*fieldRef
+
+	catchOtherField *fieldRef
 }
 
-type (
-	// TODO: make field name as key
-	unresolvedFieldKey struct {
-		yamlKey string
+type fieldRef struct {
+	fieldName  string
+	fieldValue reflect.Value
+	base       *BaseField
+
+	isCatchOther bool
+}
+
+func (f *BaseField) addField(
+	yamlKey, fieldName string,
+	fieldValue reflect.Value,
+	base *BaseField,
+) bool {
+	if _, exists := f.fields[yamlKey]; exists {
+		return false
 	}
 
-	unresolvedFieldValue struct {
-		fieldName   string
-		fieldValue  reflect.Value
-		rawDataList []*alterInterface
-		renderers   []*suffixSpec
+	f.fields[yamlKey] = &fieldRef{
+		fieldName: fieldName,
 
-		isCatchOtherField bool
+		fieldValue: fieldValue,
+		base:       base,
 	}
-)
+	return true
+}
+
+func (f *BaseField) getField(yamlKey string) *fieldRef {
+	return f.fields[yamlKey]
+}
+
+type unresolvedFieldSpec struct {
+	fieldName   string
+	fieldValue  reflect.Value
+	rawDataList []*alterInterface
+	renderers   []*suffixSpec
+
+	isCatchOtherField bool
+}
 
 func (f *BaseField) addUnresolvedField(
 	// key part
@@ -50,12 +80,7 @@ func (f *BaseField) addUnresolvedField(
 	rawData *alterInterface,
 ) {
 	if f.unresolvedFields == nil {
-		f.unresolvedFields = make(map[unresolvedFieldKey]*unresolvedFieldValue)
-	}
-
-	key := unresolvedFieldKey{
-		// yamlKey@suffix: ...
-		yamlKey: yamlKey,
+		f.unresolvedFields = make(map[string]*unresolvedFieldSpec)
 	}
 
 	if isCatchOtherField {
@@ -66,7 +91,7 @@ func (f *BaseField) addUnresolvedField(
 		f.catchOtherFields[yamlKey] = struct{}{}
 	}
 
-	if old, exists := f.unresolvedFields[key]; exists {
+	if old, exists := f.unresolvedFields[yamlKey]; exists {
 		// TODO: no idea how can this happen, the key suggests this can only
 		// 	     happen when there are duplicate yaml keys, which is invalid yaml
 		//       go-yaml should errored before we add this
@@ -77,7 +102,7 @@ func (f *BaseField) addUnresolvedField(
 		return
 	}
 
-	f.unresolvedFields[key] = &unresolvedFieldValue{
+	f.unresolvedFields[yamlKey] = &unresolvedFieldSpec{
 		fieldName:   fieldName,
 		fieldValue:  fieldValue,
 		rawDataList: []*alterInterface{rawData},

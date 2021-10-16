@@ -17,13 +17,13 @@ func (f *BaseField) Inherit(b *BaseField) error {
 	}
 
 	if f.unresolvedFields == nil {
-		f.unresolvedFields = make(map[unresolvedFieldKey]*unresolvedFieldValue)
+		f.unresolvedFields = make(map[string]*unresolvedFieldSpec)
 	}
 
 	for k, v := range b.unresolvedFields {
 		existingV, ok := f.unresolvedFields[k]
 		if !ok {
-			f.unresolvedFields[k] = &unresolvedFieldValue{
+			f.unresolvedFields[k] = &unresolvedFieldSpec{
 				fieldName:         v.fieldName,
 				fieldValue:        f._parentValue.FieldByName(v.fieldName),
 				isCatchOtherField: v.isCatchOtherField,
