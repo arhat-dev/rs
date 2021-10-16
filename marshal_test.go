@@ -77,21 +77,41 @@ func TestBaseField_MarshalYAML(t *testing.T) {
 			name: "Ptr No Value omitempty",
 			data: &struct {
 				BaseField
-				Bool *bool `yaml:"omitempty"`
+				Bool *bool `yaml:",omitempty"`
 			}{Bool: nil},
 			expected: &struct {
-				Bool *bool `yaml:"omitempty"`
+				Bool *bool `yaml:",omitempty"`
 			}{Bool: nil},
 		},
 		{
 			name: "Ptr with Value omitempty",
 			data: &struct {
 				BaseField
-				Bool *bool `yaml:"omitempty"`
+				Bool *bool `yaml:",omitempty"`
 			}{Bool: pFalse},
 			expected: &struct {
-				Bool *bool `yaml:"omitempty"`
+				Bool *bool `yaml:",omitempty"`
 			}{Bool: pFalse},
+		},
+		{
+			name: "Slice",
+			data: &struct {
+				BaseField
+				Bool []bool
+			}{Bool: nil},
+			expected: &struct {
+				Bool []bool
+			}{Bool: nil},
+		},
+		{
+			name: "Slice omitempty",
+			data: &struct {
+				BaseField
+				Slice []bool `yaml:",omitempty"`
+			}{Slice: nil},
+			expected: &struct {
+				Slice []bool `yaml:",omitempty"`
+			}{Slice: nil},
 		},
 		{
 			// to address https://github.com/go-yaml/yaml/issues/362
@@ -133,6 +153,7 @@ func TestBaseField_MarshalYAML(t *testing.T) {
 			expected, err := yaml.Marshal(test.expected)
 			assert.NoError(t, err)
 
+			t.Log(string(ret))
 			assert.EqualValues(t, string(expected), string(ret))
 		})
 	}
