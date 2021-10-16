@@ -32,6 +32,10 @@ func (f *BaseField) MarshalYAML() (interface{}, error) {
 				if v.fieldValue.IsNil() {
 					continue
 				}
+			default:
+				if v.fieldValue.IsZero() {
+					continue
+				}
 			}
 		}
 
