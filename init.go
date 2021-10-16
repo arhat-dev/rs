@@ -20,6 +20,7 @@ var (
 //
 // if the arg `in` doesn't contain BaseField or the BaseField is not the first element
 // it does nothing and will return `in` as is.
+// nolint:gocyclo
 func Init(in Field, h InterfaceTypeHandler) Field {
 	parentVal := reflect.ValueOf(in)
 	parentType := reflect.TypeOf(in)
@@ -96,11 +97,16 @@ func Init(in Field, h InterfaceTypeHandler) Field {
 			continue
 		}
 
-		var isInlineField bool
+		var (
+			isInlineField bool
+			omitempty     bool
+		)
 		for _, t := range yTags[1:] {
 			switch t {
 			case "inline":
 				isInlineField = true
+			case "omitempty":
+				omitempty = true
 			default:
 				//
 			}
@@ -118,7 +124,9 @@ func Init(in Field, h InterfaceTypeHandler) Field {
 				yamlKey = strings.ToLower(sf.Name)
 			}
 
-			if !baseField.addField(yamlKey, sf.Name, fieldValue, baseField) {
+			if !baseField.addField(
+				yamlKey, sf.Name, fieldValue, baseField, omitempty,
+			) {
 				panic(fmt.Errorf(
 					"duplicate yaml key %q for %s.%s",
 					yamlKey, parentType.String(), sf.Name,
@@ -194,7 +202,10 @@ func Init(in Field, h InterfaceTypeHandler) Field {
 					innerYamlKey = strings.ToLower(innerFt.Name)
 				}
 
-				if !baseField.addField(innerYamlKey, innerFt.Name, fieldValue.Field(j), base) {
+				if !baseField.addField(
+					innerYamlKey, innerFt.Name, fieldValue.Field(j),
+					base, omitempty,
+				) {
 					panic(fmt.Errorf(
 						"duplicate yaml key %q in inline field %s of %s",
 						innerYamlKey, innerFt.Name, parentType.String(),

@@ -34,6 +34,8 @@ type fieldRef struct {
 	fieldValue reflect.Value
 	base       *BaseField
 
+	omitempty bool
+
 	isCatchOther bool
 }
 
@@ -41,6 +43,7 @@ func (f *BaseField) addField(
 	yamlKey, fieldName string,
 	fieldValue reflect.Value,
 	base *BaseField,
+	omitempty bool,
 ) bool {
 	if _, exists := f.fields[yamlKey]; exists {
 		return false
@@ -51,6 +54,8 @@ func (f *BaseField) addField(
 
 		fieldValue: fieldValue,
 		base:       base,
+
+		omitempty: omitempty,
 	}
 	return true
 }
