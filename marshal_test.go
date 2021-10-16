@@ -8,7 +8,6 @@ import (
 )
 
 func TestBaseField_MarshalYAML(t *testing.T) {
-
 	valTrue := true
 	valFalse := false
 	pTrue := &valTrue
@@ -58,7 +57,7 @@ func TestBaseField_MarshalYAML(t *testing.T) {
 			expected: &struct{ Float float64 }{Float: 10.1},
 		},
 		{
-			name: "Ptr with Value",
+			name: "Bool Ptr with Value",
 			data: &struct {
 				BaseField
 				Bool *bool
@@ -66,7 +65,7 @@ func TestBaseField_MarshalYAML(t *testing.T) {
 			expected: &struct{ Bool *bool }{Bool: pTrue},
 		},
 		{
-			name: "Ptr No Value",
+			name: "Bool Ptr No Value",
 			data: &struct {
 				BaseField
 				Bool *bool
@@ -74,7 +73,7 @@ func TestBaseField_MarshalYAML(t *testing.T) {
 			expected: &struct{ Bool *bool }{Bool: nil},
 		},
 		{
-			name: "Ptr No Value omitempty",
+			name: "Bool Ptr No Value omitempty",
 			data: &struct {
 				BaseField
 				Bool *bool `yaml:",omitempty"`
@@ -84,7 +83,7 @@ func TestBaseField_MarshalYAML(t *testing.T) {
 			}{Bool: nil},
 		},
 		{
-			name: "Ptr with Value omitempty",
+			name: "Bool Ptr with Value omitempty",
 			data: &struct {
 				BaseField
 				Bool *bool `yaml:",omitempty"`
@@ -115,7 +114,7 @@ func TestBaseField_MarshalYAML(t *testing.T) {
 		},
 		{
 			// to address https://github.com/go-yaml/yaml/issues/362
-			name: "Inline",
+			name: "Inline Struct",
 			data: &struct {
 				BaseField
 				Struct struct {
@@ -134,7 +133,7 @@ func TestBaseField_MarshalYAML(t *testing.T) {
 		},
 		{
 			// to address https://github.com/go-yaml/yaml/issues/362
-			name: "Embedded Inline",
+			name: "Embedded Inline Struct",
 			data: &struct {
 				BaseField
 				FooWithBaseField `yaml:",inline"`
@@ -142,6 +141,36 @@ func TestBaseField_MarshalYAML(t *testing.T) {
 			expected: &struct {
 				Foo `yaml:",inline"`
 			}{Foo: Foo{Foo: "foo"}},
+		},
+		{
+			name: "Interface Nil",
+			data: &struct {
+				BaseField
+				Ptr yaml.Marshaler
+			}{Ptr: nil},
+			expected: &struct {
+				Ptr yaml.Marshaler
+			}{Ptr: nil},
+		},
+		{
+			name: "Struct Ptr Nil Panic if not check value kind",
+			data: &struct {
+				BaseField
+				Ptr *FooWithBaseField
+			}{Ptr: nil},
+			expected: &struct {
+				Ptr *Foo
+			}{Ptr: nil},
+		},
+		{
+			name: "Struct Ptr Nil Not Panic When omitempty",
+			data: &struct {
+				BaseField
+				Ptr *FooWithBaseField `yaml:",omitempty"`
+			}{Ptr: nil},
+			expected: &struct {
+				Ptr *Foo `yaml:",omitempty"`
+			}{Ptr: nil},
 		},
 	}
 
