@@ -116,7 +116,7 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 	tests := []struct {
 		name string
 
-		spec     renderingPatchSpec
+		spec     PatchSpec
 		original interface{}
 
 		expectErr bool
@@ -124,13 +124,13 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 	}{
 		{
 			name:     "Valid Nop List Merge",
-			spec:     renderingPatchSpec{},
+			spec:     PatchSpec{},
 			original: []interface{}{"a", "b", "c"},
 			expected: []interface{}{"a", "b", "c"},
 		},
 		{
 			name: "Valid List Merge Only",
-			spec: renderingPatchSpec{
+			spec: PatchSpec{
 				Merge: createMergeValue(t, []string{"a", "b", "c"}),
 			},
 			original: nil,
@@ -138,7 +138,7 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 		},
 		{
 			name: "Invalid List Merge Type Not Match",
-			spec: renderingPatchSpec{
+			spec: PatchSpec{
 				Merge: createMergeValue(t, "oops: not a list"),
 			},
 			original:  []interface{}{"a", "b", "c"},
@@ -146,7 +146,7 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 		},
 		{
 			name: "List Merge",
-			spec: renderingPatchSpec{
+			spec: PatchSpec{
 				Merge: createMergeValue(t, []string{"c", "d", "e", "f"}),
 			},
 			original: []interface{}{"a", "b", "c"},
@@ -158,7 +158,7 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 		},
 		{
 			name: "List Merge Unique",
-			spec: renderingPatchSpec{
+			spec: PatchSpec{
 				Merge:  createMergeValue(t, []string{"c", "d", "c", "f"}),
 				Unique: true,
 			},
@@ -167,13 +167,13 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 		},
 		{
 			name:     "Valid Nop Map Merge",
-			spec:     renderingPatchSpec{},
+			spec:     PatchSpec{},
 			original: map[string]interface{}{"foo": "bar"},
 			expected: map[string]interface{}{"foo": "bar"},
 		},
 		{
 			name: "Valid Map Merge Only",
-			spec: renderingPatchSpec{
+			spec: PatchSpec{
 				Merge: createMergeValue(t, map[string]string{
 					"foo": "bar",
 				}),
@@ -183,7 +183,7 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 		},
 		{
 			name: "Map Merge No List Append",
-			spec: renderingPatchSpec{
+			spec: PatchSpec{
 				Merge: createMergeValue(t, map[string][]string{
 					"a": {"a"},
 				}),
@@ -193,7 +193,7 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 		},
 		{
 			name: "Map Merge Append List",
-			spec: renderingPatchSpec{
+			spec: PatchSpec{
 				Merge: createMergeValue(t, map[string][]string{
 					"a": {"a"},
 				}),
