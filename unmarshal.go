@@ -18,7 +18,6 @@ var (
 
 // UnmarshalYAML handles parsing of rendering suffix and normal yaml
 // unmarshaling
-// nolint:gocyclo
 func (f *BaseField) UnmarshalYAML(n *yaml.Node) error {
 	if atomic.LoadUint32(&f._initialized) == 0 {
 		return fmt.Errorf("rs: struct not intialized before unmarshaling")
