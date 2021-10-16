@@ -117,8 +117,8 @@ Rendering suffix is applicable to every single yaml field, doing exactly what en
 Sample YAML Doc with all features above
 
 ```yaml
-foo@a|b|c!: &foo
-  value@http?[]obj: https://example.com
+foo@a!: &foo
+  value@env|http?[]obj: https://example.com/${FOO_FILE_PATH}
   merge:
   - value@file: ./value-a.yml
     select: |-
@@ -132,8 +132,10 @@ foo@a|b|c!: &foo
   select: |-
     { foo: .[0].foo, bar: .[1].bar }
 
-bar@a|b|c: *foo
+bar@a!: *foo
 ```
+
+__NOTE:__ This module provides no renderer implementation, and the only built-in renderer is a pseudo renderer with empty name that skips rendering (output is what input is) for data patching and type hinting purpose (e.g. `foo@?int!: { ... patch spec ... }`). You have to roll out your own renderers.
 
 ## Usage
 
