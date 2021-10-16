@@ -21,13 +21,11 @@ func (f *BaseField) ResolveFields(rc RenderingHandler, depth int, fieldNames ...
 		return nil
 	}
 
-	parentStructType := f._parentValue.Type()
-
 	if len(fieldNames) == 0 {
 		// resolve all
 
 		for i := 1; i < f._parentValue.NumField(); i++ {
-			sf := parentStructType.Field(i)
+			sf := f._parentType.Field(i)
 			if len(sf.PkgPath) != 0 {
 				// not exported
 				continue
@@ -39,7 +37,7 @@ func (f *BaseField) ResolveFields(rc RenderingHandler, depth int, fieldNames ...
 			if err != nil {
 				return fmt.Errorf(
 					"rs: failed to resolve field %s.%s: %w",
-					parentStructType.String(), sf.Name, err,
+					f._parentType.String(), sf.Name, err,
 				)
 			}
 		}
@@ -50,14 +48,17 @@ func (f *BaseField) ResolveFields(rc RenderingHandler, depth int, fieldNames ...
 	for _, name := range fieldNames {
 		fv := f._parentValue.FieldByName(name)
 		if !fv.IsValid() {
-			return fmt.Errorf("rs: no such field %q in struct %q", name, parentStructType.String())
+			return fmt.Errorf(
+				"rs: no such field %q in struct %q",
+				name, f._parentType.String(),
+			)
 		}
 
 		err := f.resolveSingleField(rc, depth, name, fv)
 		if err != nil {
 			return fmt.Errorf(
 				"rs: failed to resolve requested field %s.%s: %w",
-				parentStructType.String(), name, err,
+				f._parentType.String(), name, err,
 			)
 		}
 	}
@@ -166,8 +167,8 @@ func tryResolve(rc RenderingHandler, depth int, targetField reflect.Value) error
 func (f *BaseField) handleUnResolvedField(
 	rc RenderingHandler,
 	depth int,
-	key unresolvedFieldKey,
-	v *unresolvedFieldValue,
+	yamlKey string,
+	v *unresolvedFieldSpec,
 	keepOld bool,
 ) error {
 	target := v.fieldValue
@@ -176,7 +177,7 @@ func (f *BaseField) handleUnResolvedField(
 		toResolve := rawData
 		if v.isCatchOtherField {
 			// unwrap map data for resolving
-			toResolve = rawData.mapData[key.yamlKey]
+			toResolve = rawData.mapData[yamlKey]
 		}
 
 		var (
@@ -227,7 +228,7 @@ func (f *BaseField) handleUnResolvedField(
 				if err != nil {
 					return fmt.Errorf(
 						"failed to ensure type hint %q on yaml key %q: %w",
-						hint, key.yamlKey, err,
+						hint, yamlKey, err,
 					)
 				}
 
@@ -251,7 +252,7 @@ func (f *BaseField) handleUnResolvedField(
 			if err != nil {
 				return fmt.Errorf(
 					"failed to ensure type hint %q on yaml key %q: %w",
-					hint, key.yamlKey, err,
+					hint, yamlKey, err,
 				)
 			}
 		}
@@ -260,7 +261,7 @@ func (f *BaseField) handleUnResolvedField(
 		if v.isCatchOtherField {
 			// wrap back for catch other filed
 			resolved = map[string]interface{}{
-				key.yamlKey: resolved,
+				yamlKey: resolved,
 			}
 		}
 
@@ -269,11 +270,11 @@ func (f *BaseField) handleUnResolvedField(
 		// 	     leave inconsistent data
 
 		actualKeepOld := keepOld || v.isCatchOtherField || i != 0
-		err = f.unmarshal(key.yamlKey, reflect.ValueOf(resolved), target, actualKeepOld)
+		err = f.unmarshal(yamlKey, reflect.ValueOf(resolved), target, actualKeepOld)
 		if err != nil {
 			return fmt.Errorf(
 				"failed to unmarshal resolved value of yaml key %q to field %q: %w",
-				key.yamlKey, v.fieldName, err,
+				yamlKey, v.fieldName, err,
 			)
 		}
 	}
