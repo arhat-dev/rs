@@ -180,7 +180,9 @@ func (f *BaseField) unmarshal(
 
 	// reset to zero value if already set
 	if !in.IsValid() {
-		outVal.Set(reflect.Zero(outVal.Type()))
+		if outVal.CanSet() {
+			outVal.Set(reflect.Zero(outVal.Type()))
+		}
 		return nil
 	}
 
