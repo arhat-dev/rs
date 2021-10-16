@@ -80,8 +80,9 @@ func Init(in Field, h InterfaceTypeHandler) Field {
 	baseField._parentValue = parentVal
 	baseField._parentType = parentType
 	baseField.ifaceTypeHandler = h
-	baseField.fields = make(map[string]*fieldRef)
 
+	// initialize fields
+	baseField.fields = make(map[string]*fieldRef)
 	for i := 1; i < parentType.NumField(); i++ {
 		sf := parentType.Field(i)
 		if len(sf.PkgPath) != 0 {

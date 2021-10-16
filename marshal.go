@@ -5,6 +5,7 @@ package rs
 
 import (
 	"fmt"
+	"reflect"
 	"sync/atomic"
 
 	"gopkg.in/yaml.v3"
@@ -19,13 +20,25 @@ func (f *BaseField) MarshalYAML() (interface{}, error) {
 
 	var ret map[string]interface{}
 	for k, v := range f.fields {
-		if v.omitempty && (!v.fieldValue.IsValid() || !v.fieldValue.CanInterface()) {
-			continue
+		if v.omitempty {
+			switch v.fieldValue.Kind() {
+			case reflect.Invalid:
+				continue
+			case reflect.Slice, reflect.Array, reflect.Map:
+				if v.fieldValue.Len() == 0 {
+					continue
+				}
+			case reflect.Ptr:
+				if v.fieldValue.IsNil() {
+					continue
+				}
+			}
 		}
 
 		if ret == nil {
 			ret = make(map[string]interface{})
 		}
+
 		ret[k] = v.fieldValue.Interface()
 	}
 
