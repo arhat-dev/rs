@@ -1,6 +1,8 @@
 package rs_test
 
 import (
+	"fmt"
+
 	"gopkg.in/yaml.v3"
 
 	"arhat.dev/rs"
@@ -42,7 +44,7 @@ func ExampleField_ResolveFields() {
 		panic(err)
 	}
 
-	println(s.MyValue)
+	fmt.Println(s.MyValue)
 
 	// output:
 	//	hello
