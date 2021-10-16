@@ -307,7 +307,7 @@ func (f *BaseField) resolvePatchSpec(
 		}
 	}
 
-	patchSpec = Init(&renderingPatchSpec{}, f.ifaceTypeHandler).(*renderingPatchSpec)
+	patchSpec = Init(&renderingPatchSpec{}, f.opts).(*renderingPatchSpec)
 	err = yaml.Unmarshal(patchSpecBytes, patchSpec)
 	if err != nil {
 		return nil, nil, fmt.Errorf(
