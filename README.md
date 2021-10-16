@@ -80,16 +80,17 @@ remote_host_script: |-
 ```
 
 - Make `remote_host_script` a file path reference (or add a new field like `remote_host_script_file`)?
-  - Simple and effective, but now you have two source of remote host script, more fixed code logic added, and you have to document which is preferred when both is set. End user MUST read your documentation in detial for such subtle issues (if you are good at documenting).
+  - Simple and effective, but now you have two source of remote host script, more fixed code logic added, more document to come for preferred options when both is set. End user MUST read your documentation in detail for such subtle issues (if you are good at documenting).
 - Expand environment variables before unmarshaling?
-  - what would you do with `${ENV_WITH_DIFFERENT_CONTEXT}`?
-  - Well, you can unmarshal the config into two config, one with environment variables expanded, another not, and merge them into one.
-- Unmarshal as `map[string]interface{}` first, then do custom handling for every field?
-  - Now you have to work with types manually, tedious yet error prone job again.
+  - What would you do with `${ENV_WITH_DIFFERENT_CONTEXT}`? Well, you can unmarshal the config into two config, one with environment variables expanded, another not, and merge them into one.
+- Unmarshal yaml as `map[string]interface{}` first, then do custom handling for every field?
+  - Now you have to work with types manually, tedious yet error prone job starts now.
 - Create a new DSL, add some keywords...
-  - We have already seen so many DSLs created just for configuration purpose, none of them really simplified the configuration management, and usually only useful for development not deployment.
+  - We have already seen so many DSLs created just for configuration purpose, almost none of them really simplified the configuration management, and usually only useful for development not deployment.
 
-What we actually need is let end user decide which field is resolved by what method, as developers we just control when to resolve which field. Rendering suffix is applicable to every single field, doing exactly what end user need, and it can resolve fields partialy with some strategy, also exactly what developers need.
+As developers, what we actually need is let end user decide which field is resolved by what method, and we just control when to resolve which field.
+
+Rendering suffix is applicable to every single yaml field, doing exactly what end user need, and it can resolve fields partialy with some strategy in code, also exactly what developers want.
 
 ## Prerequisites
 
@@ -97,10 +98,10 @@ What we actually need is let end user decide which field is resolved by what met
 
 ## Features
 
-- Field specific rendering: customizable in-place yaml rendering
+- Field specific rendering: customizable in-place yaml data rendering
   - Add a suffix starts with `@`, followed by some renderer name, to your yaml field name as rendering suffix (e.g. `foo@<renderer-name>: bar`)
 - Type hinting: keep you data as what it supposed to be
-  - Add a type hint suffix `?<some-type>` to your renderer (e.g. `foo@<renderer-name>?[]obj: bar` suggests `foo` should be an array of objects)
+  - Add a type hint suffix `?<some-type>` to your renderer (e.g. `foo@<renderer-name>?[]obj: bar` suggests `foo` should be an array of objects using result from `<renderer-name>` generated with input `bar`)
   - [list of supported type hints](https://github.com/arhat-dev/rs/blob/v0.3.0/resolve.go#L353))
 - Data merging and patching made esay: create patching spec in yaml doc
   - Add a patching suffix `!` to your renderer (after the type hint if any), feed it a [patch spec](https://pkg.go.dev/arhat.dev/rs#PatchSpec) object
@@ -109,11 +110,14 @@ What we actually need is let end user decide which field is resolved by what met
 - Supports arbitraty yaml doc without type definition in code
   - Use [`AnyObject`](https://pkg.go.dev/arhat.dev/rs#AnyObject) as `interface{}`
   - Use [`AnyObjectMap`](https://pkg.go.dev/arhat.dev/rs#AnyObjectMap) as `map[string]interface{}`
+- Vanilla yaml, valid for all standard yaml parser
+- Everything `gopkg.in/yaml.v3` supports are supported
+  - Anchors, Alias, YAML Merges
 
-Doc with all these features
+Sample YAML Doc with all features above
 
 ```yaml
-foo@a|b|c!:
+foo@a|b|c!: &foo
   value@http?[]obj: https://example.com
   merge:
   - value@file: ./value-a.yml
@@ -127,6 +131,8 @@ foo@a|b|c!:
     select: '. + "-suffix-from-jq-query"'
   select: |-
     { foo: .[0].foo, bar: .[1].bar }
+
+bar@a|b|c: *foo
 ```
 
 ## Usage
