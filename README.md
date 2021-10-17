@@ -21,7 +21,7 @@ A plain yaml doc looks like this:
 foo: bar
 ```
 
-everything's static, once unmarshaled, `foo` gets value `bar`.
+Everything's static, once unmarshaled, `foo` gets value `bar`.
 
 Now what if we would like to take an environment variable as `foo`'s value?
 
@@ -90,7 +90,16 @@ remote_host_script: |-
 
 As developers, what we actually need is let end user decide which field is resolved by what method, and we just control when to resolve which field.
 
-Rendering suffix is applicable to every single yaml field, doing exactly what end user need, and it can resolve fields partialy with some strategy in code, also exactly what developers want.
+Rendering suffix is applicable to every single yaml field, doing exactly what end user need, and it can resolve fields partially with certain strategy in code, which is exactly what developers want.
+
+Rendering suffix does one thing to make both end users and developers happy:
+
+Make your configuration flexible while still intuitive
+
+- Developers don't define how to resolve, but only control when to resolve
+- Provide end user easy to understand renderers, rather than confine their creativity to certain resolving rules.
+
+Now, think again, would gradle be a better tool using dynamic yaml instead of Groovy DSL? Could GitOps for kubernetes be more easier with rendering suffix yaml instead of special purpose built kustomize or helm?
 
 ## Prerequisites
 
