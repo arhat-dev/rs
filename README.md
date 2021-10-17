@@ -51,9 +51,11 @@ Simple and straightforward, right?
 
 ### Why?
 
-Both writing and resolving software configuration are tedious and error prone, especially when you want to achieve felixibility to some extent.
+A piece of software configuration is like a piece of contract between developer and end user: set this, do that.
 
-Here is an example, given target config like this
+For very long time, both writing and resolving software configuration are tedious and error prone, especially when you want to achieve felixibility to some extent.
+
+Let's discuss with a simple example, take target config as this
 
 ```go
 type Config struct {
@@ -66,7 +68,7 @@ type Config struct {
 }
 ```
 
-when you want to support environment variables for its fields `A`, `B`, `C`, while not including `remote_host_script` (obviously the `remote_host_script` should be executed in some remote system), what whould you do?
+What whould you do when you want to support environment variables for its fields `A`, `B`, `C`, while not `remote_host_script` (obviously the `remote_host_script` should be executed in some remote system).
 
 ```yaml
 a: ${ENV_FOR_A}
@@ -79,13 +81,14 @@ remote_host_script: |-
   echo ${ENV_WITH_DIFFERENT_CONTEXT}
 ```
 
-- Make `remote_host_script` a file path reference (or add a new field like `remote_host_script_file`)?
+- Solution 1: Make `remote_host_script` a file path reference (or add a new field like `remote_host_script_file`)?
   - Simple and effective, but now you have two source of remote host script, more fixed code logic added, more document to come for preferred options when both is set. End user MUST read your documentation in detail for such subtle issues (if you are good at documenting).
-- Expand environment variables before unmarshaling?
+- Solution 2: Expand environment variables before unmarshaling?
   - What would you do with `${ENV_WITH_DIFFERENT_CONTEXT}`? Well, you can unmarshal the config into two config, one with environment variables expanded, another not, and merge them into one.
-- Unmarshal yaml as `map[string]interface{}` first, then do custom handling for every field?
+  - Looks like a effective solution, but now you have to do the merge in fixed code.
+- Solution 3: Unmarshal yaml as `map[string]interface{}` first, then do custom handling for every field?
   - Now you have to work with types manually, tedious yet error prone job starts now.
-- Create a new DSL, add some keywords...
+- Solution 4: Create a new DSL, add some keywords...
   - We have already seen so many DSLs created just for configuration purpose, almost none of them really simplified the configuration management, and usually only useful for development not deployment.
 
 As developers, what we actually need is let end user decide which field is resolved by what method, and we just control when to resolve which field.
@@ -158,6 +161,20 @@ See [known_limitation_test.go](./known_limitation_test.go) for sample code and w
 
 - Built-in map data structure with rendering suffix applied to map key are treated as is, rendering suffix won't be recognized.
   - which means for `map[string]interface{}`, `foo@foo: bar` is just a map item with key `foo@foo`, value `bar`, no data to be resolved
+
+## How it works?
+
+IoC (Inversion of Control) is famous for its application in DI (Dependency Injection), but what it literally says is to control the outside world at somewhere inside the world, that's the start point.
+
+Custom yaml unmarshaling requires custom implementation of `yaml.Unmarshaler`, so usually you just get your structs unmarshaling by go-yaml directly.
+
+`BaseField` lives in your struct as a embedded field, all its methods are exposed to the outside world by default, and of course `BaseField` implements `yaml.Unmarshaler`.
+
+Can you control how sibling fields of a struct? not possible unless with the help of outside world, that's why we need `Init()` function, calling `Init()` with your struct actually activates the `BaseField` in it, `Init()` function tells the inner `BaseField` what fields the parent struct have, and how to unmarshal yaml data to them, with the help of reflection.
+
+You only have to call `Init()` once for the top level struct, `BaseField` in it knows what to do with sibling fields, it will search for all structs with `BaseField` embedded when unmarshaling, call `Init()` for them, until the yaml doc is unmarshaled in this recursive fashion.
+
+Basically `BaseField` handles everything related to yaml unmarshaling to support rendering suffix after initial activation, so all you need to do is to embed a `BaseField` as the very first field in your struct.
 
 ## LICENSE
 
