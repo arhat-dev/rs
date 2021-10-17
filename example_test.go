@@ -8,7 +8,7 @@ import (
 	"arhat.dev/rs"
 )
 
-func ExampleField_ResolveFields() {
+func ExampleBaseField_ResolveFields() {
 	type MyStruct struct {
 		rs.BaseField `yaml:"-"`
 
