@@ -223,7 +223,7 @@ array@echo|echo|echo: |-
 				out._initialized = 0
 				out._parentValue = reflect.Value{}
 				out._parentType = nil
-				out.fields = nil
+				out.normalFields = nil
 				out.catchOtherCache = nil
 				out.catchOtherField = nil
 				for k := range out.unresolvedFields {
@@ -234,7 +234,7 @@ array@echo|echo|echo: |-
 				out.InlineWithBaseField._initialized = 0
 				out.InlineWithBaseField._parentValue = reflect.Value{}
 				out.InlineWithBaseField._parentType = nil
-				out.InlineWithBaseField.fields = nil
+				out.InlineWithBaseField.normalFields = nil
 				out.InlineWithBaseField.catchOtherCache = nil
 				out.InlineWithBaseField.catchOtherField = nil
 				for k := range out.InlineWithBaseField.unresolvedFields {
