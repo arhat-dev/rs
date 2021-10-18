@@ -69,6 +69,7 @@ jobs:
       # TODO: the sonarqube-scan-action uses container, only supported on
       #       linux platforms
       if: ${{ matrix.os == 'ubuntu-latest' }}
+      continue-on-error: true
       env:
         SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
         SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
