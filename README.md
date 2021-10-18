@@ -33,7 +33,7 @@ you will only get `${FOO}` after unmarshaling, you have to code you own logic to
 
 What you code, is actually a `renderer` with its usage specific to `foo`.
 
-Rendering suffix is there to help, it offers a way to make your yaml doc dynamic on its own, you control what you get in yaml rather than your compiled code.
+Rendering suffix is here to help, it offers a way to make your yaml doc dynamic on its own, you control what you get in yaml rather than your compiled code.
 
 ### How it looks?
 
@@ -118,13 +118,13 @@ Custom yaml unmarshaling requires custom implementation of `yaml.Unmarshaler`, s
 
 We implemented something called `BaseField`, it lives in your struct as a embedded field, all its methods are exposed to the outside world by default, and guess what, it implements `yaml.Unmarshaler`, so your struct implements `yaml.Unmarshaler` as well.
 
-But can you control sibling fields of a struct? Not possible in golang unless with the help of outside world, that's why we need `Init()` function, calling `Init()` with your struct actually activates the `BaseField` in it, `Init()` function tells the inner `BaseField` what fields the parent struct have (its sibling fields), with the help of reflection.
+But can you control sibling fields in a struct? Not possible in golang unless with the help of outside world, that's why we need `Init()` function, calling `Init()` with your struct actually activates the `BaseField` in it, `Init()` function tells the inner `BaseField` what fields the parent struct have (its sibling fields), with the help of reflection.
 
-You only have to call `Init()` once for the top level struct, then `BaseField` in it knows what to do with sibling fields, it will search for all structs with `BaseField` embedded when unmarshaling, call `Init()` for them, until the yaml doc is unmarshaled in this recursive fashion.
+You only have to call `Init()` once for the top level struct, since then the `BaseField` in it knows what to do with its sibling fields, it will also search for all structs with `BaseField` embedded when unmarshaling, call `Init()` for them, until the whole yaml doc is unmarshaled.
 
 During the unmarshaling process, `BaseField.UnmarshalYAML` get called by `yaml.Unmarhsal`, it checks the input yaml field names, if a yaml field name has a suffix starting with `@`, then that yaml field will be treated as using rendering suffix, `BaseField` parses the yaml field name to know the real field name is (e.g. `foo@bar`'s real field name is `foo`) and sets the rendering pipeline with the suffix, it also saves the yaml field value on its own but not setting the actual strcut field, when you call `my_struct_with_BaseField.ResolveFields()`, it feeds the rendering pipeline with saved field value to generate actual field value and set that as struct field value.
 
-`BaseField` handles everything related to yaml unmarshaling to support rendering suffix after initial activation, so all you need to do is to embed a `BaseField` as the very first field in your struct and activate the top level struct with a `Init()` function call.
+All in all, `BaseField` handles everything related to yaml unmarshaling to support rendering suffix after initial activation, so all you need to do is to embed a `BaseField` as the very first field in your struct where you want to support rendering suffix and activate the top level struct (with `BaseField` embedded, which can be some inner field) with a `Init()` function call.
 
 ## FAQ
 
