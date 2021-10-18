@@ -63,7 +63,7 @@ jobs:
 
     - name: Unit Tests
       run: |
-        dukkha golang local test rs
+        dukkha run golang local test rs
 
     - uses: sonarsource/sonarqube-scan-action@v1.0.0
       # TODO: the sonarqube-scan-action uses container, only supported on
