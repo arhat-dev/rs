@@ -61,7 +61,7 @@ It's simple and straightforward, right?
   - Add a suffix starts with `@`, followed by some renderer name, to your yaml field name as rendering suffix (e.g. `foo@<renderer-name>: bar`)
 - Type hinting: keep you data as what it supposed to be
   - Add a type hint suffix `?<some-type>` to your renderer (e.g. `foo@<renderer-name>?[]obj: bar` suggests `foo` should be an array of objects using result from `<renderer-name>` generated with input `bar`)
-  - [list of supported type hints](https://github.com/arhat-dev/rs/blob/v0.4.0/typehint.go#L24))
+  - See [list of supported type hints](https://github.com/arhat-dev/rs/blob/v0.4.0/typehint.go#L24)
 - Data merging and patching made esay: create patching spec in yaml doc
   - Add a patching suffix `!` to your renderer (after the type hint if any), feed it a [patch spec](https://pkg.go.dev/arhat.dev/rs#PatchSpec) object
 - Renderer chaining: render you data with a rendering pipeline
