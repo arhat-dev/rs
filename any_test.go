@@ -8,6 +8,17 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// type check
+var (
+	_ Field          = (*AnyObject)(nil)
+	_ yaml.Marshaler = (*AnyObject)(nil)
+	_ json.Marshaler = (*AnyObject)(nil)
+
+	_ Field          = (*AnyObjectMap)(nil)
+	_ yaml.Marshaler = (*AnyObjectMap)(nil)
+	_ json.Marshaler = (*AnyObjectMap)(nil)
+)
+
 func createExpectedJSONValue(t *testing.T, i interface{}) string {
 	data, err := json.Marshal(i)
 	if !assert.NoError(t, err) {

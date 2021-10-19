@@ -7,6 +7,12 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+var (
+	_ RenderingHandler = RenderingHandleFunc(nil)
+
+	_ InterfaceTypeHandler = InterfaceTypeHandleFunc(nil)
+)
+
 func TestInterfaceTypeHandleFunc_Create(t *testing.T) {
 	called := false
 	f := InterfaceTypeHandleFunc(func(typ reflect.Type, yamlKey string) (interface{}, error) {
