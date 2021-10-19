@@ -8,11 +8,338 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+// type check
+var (
+	_ yaml.Marshaler = (*BaseField)(nil)
+)
+
+type marshalTestSpec struct {
+	name string
+
+	data interface{}
+
+	inputNoRS   string
+	inputWithRS string
+
+	equivalent interface{}
+}
+
+var (
+	_ Field          = (*dataWrapper)(nil)
+	_ yaml.Marshaler = (*dataWrapper)(nil)
+)
+
+type dataWrapper struct {
+	data interface{}
+}
+
+func (dw *dataWrapper) ResolveFields(rc RenderingHandler, depth int, fieldNames ...string) error {
+	bf := reflect.ValueOf(dw.data).Elem().Field(0).Interface().(BaseField)
+	return (*BaseField).ResolveFields(&bf, rc, depth, fieldNames...)
+}
+
+func (dw *dataWrapper) UnmarshalYAML(n *yaml.Node) error {
+	bf := reflect.ValueOf(dw.data).Elem().Field(0).Interface().(BaseField)
+	return (*BaseField).UnmarshalYAML(&bf, n)
+}
+
+func (dw *dataWrapper) MarshalYAML() (interface{}, error) {
+	bf := reflect.ValueOf(dw.data).Elem().Field(0).Interface().(BaseField)
+	return (*BaseField).MarshalYAML(&bf)
+}
+
+func runMarshalTest(t *testing.T, tests []marshalTestSpec) {
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			expectedBytes, err := yaml.Marshal(test.equivalent)
+			assert.NoError(t, err)
+
+			expected := string(expectedBytes)
+
+			t.Run("Direct Set", func(t *testing.T) {
+				ret, err := yaml.Marshal(initInterface(test.data, nil))
+				assert.NoError(t, err)
+
+				t.Log(string(ret))
+				assert.EqualValues(t, expected, string(ret))
+			})
+
+			newEmptyValue := func() Field {
+				return &dataWrapper{
+					data: initInterface(
+						reflect.New(reflect.TypeOf(test.data).Elem()).Interface(),
+						nil,
+					),
+				}
+			}
+
+			t.Run("After Unmarshal", func(t *testing.T) {
+				v := Init(newEmptyValue(), nil)
+				assert.NoError(t, yaml.Unmarshal([]byte(test.inputNoRS), v))
+
+				ret, err := yaml.Marshal(v)
+				assert.NoError(t, err)
+
+				assert.EqualValues(t, expected, string(ret))
+			})
+
+			t.Run("After Unmarshal And Resolve", func(t *testing.T) {
+				v := Init(newEmptyValue(), nil)
+				assert.NoError(t, yaml.Unmarshal([]byte(test.inputWithRS), v))
+
+				assert.NoError(t, v.ResolveFields(&testRenderingHandler{}, -1))
+
+				ret, err := yaml.Marshal(v)
+				assert.NoError(t, err)
+
+				assert.EqualValues(t, expected, string(ret))
+			})
+		})
+	}
+}
+
+func TestBaseField_MarshalYAML_uninitialized(t *testing.T) {
+	_, err := yaml.Marshal(&struct {
+		BaseField
+		Foo string
+	}{Foo: ""})
+
+	assert.Error(t, err)
+}
+
+func TestBaseField_MarshalYAML_primitive(t *testing.T) {
+	var allTests []marshalTestSpec
+
+	type minorSpec struct {
+		nameSuffix string
+		actualType reflect.Type
+		tag        string
+
+		value reflect.Value
+	}
+
+	basicMinorSpecs := func(majorDataType reflect.Type, testVal reflect.Value, testValPtr reflect.Value) []minorSpec {
+		ret := []minorSpec{
+			{
+				nameSuffix: "Not Empty",
+				actualType: majorDataType,
+				tag:        ``,
+
+				value: testVal,
+			},
+			{
+				nameSuffix: "Not Empty Omitempty",
+				actualType: majorDataType,
+				tag:        ``,
+
+				value: testVal,
+			},
+			{
+				nameSuffix: "Empty",
+				actualType: majorDataType,
+				tag:        ``,
+
+				value: reflect.Zero(majorDataType),
+			},
+			{
+				nameSuffix: "Empty Omitempty",
+				actualType: majorDataType,
+				tag:        `yaml:",omitempty"`,
+
+				value: reflect.Zero(majorDataType),
+			},
+			{
+				nameSuffix: "Ptr Nil",
+				actualType: reflect.PtrTo(majorDataType),
+				tag:        ``,
+
+				value: reflect.Zero(reflect.PtrTo(majorDataType)),
+			},
+			{
+				nameSuffix: "Ptr Nil Omitempty",
+				actualType: reflect.PtrTo(majorDataType),
+				tag:        `yaml:",omitempty"`,
+
+				value: reflect.Zero(reflect.PtrTo(majorDataType)),
+			},
+
+			{
+				nameSuffix: "Ptr Not Nil",
+				actualType: reflect.PtrTo(majorDataType),
+				tag:        ``,
+
+				value: testValPtr,
+			},
+			{
+				nameSuffix: "Ptr Not Nil Omitempty",
+				actualType: reflect.PtrTo(majorDataType),
+				tag:        `yaml:",omitempty"`,
+
+				value: testValPtr,
+			},
+		}
+
+		switch majorDataType.Kind() {
+		case reflect.Slice, reflect.Interface, reflect.Map:
+			ret = append([]minorSpec{
+				{
+					nameSuffix: "Nil",
+					actualType: majorDataType,
+					value:      reflect.ValueOf(nil),
+				},
+				{
+					nameSuffix: "Nil Omitempty",
+					actualType: majorDataType,
+					tag:        `yaml:",omitempty"`,
+					value:      reflect.ValueOf(nil),
+				},
+			}, ret...)
+		}
+
+		return ret
+	}
+
+	for _, testMajor := range []interface{}{
+		string("str-value"),
+		bool(true),
+		float32(1.1), float64(1.1),
+		int(1), int8(1), int16(1), int32(1), rune('D'), int64(1),
+		uint(1), byte(1), uint8(1), uint16(1), uint32(1), uint64(1), uintptr(1),
+
+		// go-yaml doesn't support marshaling of complex values
+		//
+		// complex64(complex(float32(1.1), float32(1.1))),
+		// complex128(complex(float64(1.1), float64(1.1))),
+
+		[]interface{}{
+			string("str-value"),
+			bool(true),
+			float32(1.1), float64(1.1),
+			int(1), int8(1), int16(1), int32(1), rune('D'), int64(1),
+			uint(1), byte(1), uint8(1), uint16(1), uint32(1), uint64(1), uintptr(1),
+		},
+		[...]interface{}{
+			string("str-value"),
+			bool(true),
+			float32(1.1), float64(1.1),
+			int(1), int8(1), int16(1), int32(1), rune('D'), int64(1),
+			uint(1), byte(1), uint8(1), uint16(1), uint32(1), uint64(1), uintptr(1),
+		},
+		map[string]interface{}{
+			"string":  string("str-value"),
+			"bool":    bool(true),
+			"float32": float32(1.1),
+			"float64": float64(1.1),
+			"int":     int(1),
+			"int8":    int8(1),
+			"int16":   int16(1),
+			"int32":   int32(1),
+			"rune":    rune('D'),
+			"int64":   int64(1),
+			"uint":    uint(1),
+			"byte":    byte(1),
+			"uint8":   uint8(1),
+			"uint16":  uint16(1),
+			"uint32":  uint32(1),
+			"uint64":  uint64(1),
+			"uintptr": uintptr(1),
+		},
+		map[string][]interface{}{
+			"foo": {
+				string("str-value"),
+				bool(true),
+				float32(1.1), float64(1.1),
+				int(1), int8(1), int16(1), int32(1), rune('D'), int64(1),
+				uint(1), byte(1), uint8(1), uint16(1), uint32(1), uint64(1), uintptr(1),
+			},
+		},
+		map[string]map[string][]interface{}{
+			"foo": {"foo": {
+				string("str-value"),
+				bool(true),
+				float32(1.1), float64(1.1),
+				int(1), int8(1), int16(1), int32(1), rune('D'), int64(1),
+				uint(1), byte(1), uint8(1), uint16(1), uint32(1), uint64(1), uintptr(1),
+			}},
+			"bar": {"bar": {
+				string("str-value"),
+				bool(true),
+				float32(1.1), float64(1.1),
+				int(1), int8(1), int16(1), int32(1), rune('D'), int64(1),
+				uint(1), byte(1), uint8(1), uint16(1), uint32(1), uint64(1), uintptr(1),
+			}},
+		},
+	} {
+
+		majorDataType := reflect.TypeOf(testMajor)
+
+		testVal := reflect.ValueOf(testMajor)
+		testValPtr := reflect.New(majorDataType)
+		testValPtr.Elem().Set(testVal)
+
+		minorSpecs := basicMinorSpecs(majorDataType, testVal, testValPtr)
+		for _, test := range minorSpecs {
+			typePlain := reflect.StructOf([]reflect.StructField{
+				{
+					Name:      "Data",
+					Type:      test.actualType,
+					Tag:       reflect.StructTag(test.tag),
+					Anonymous: false,
+				},
+			})
+
+			typeWithBaseField := reflect.StructOf([]reflect.StructField{
+				{
+					Name:      "BaseField",
+					Type:      baseFieldStructType,
+					Tag:       `yaml:"-"`,
+					Anonymous: true,
+				},
+				{
+					Name:      "Data",
+					Type:      test.actualType,
+					Tag:       reflect.StructTag(test.tag),
+					Anonymous: false,
+				},
+			})
+
+			data := reflect.New(typeWithBaseField)
+			equivalent := reflect.New(typePlain)
+			var valueData interface{}
+			if test.value.IsValid() {
+				valueData = test.value.Interface()
+				data.Elem().Field(1).Set(test.value)
+				equivalent.Elem().Field(0).Set(test.value)
+			} else {
+				valueData = nil
+			}
+
+			valueBytes, err := yaml.Marshal(map[string]interface{}{
+				"data": valueData,
+			})
+			assert.NoError(t, err)
+
+			rsValueBytes, err := yaml.Marshal(map[string]interface{}{
+				"data@echo": valueData,
+			})
+			assert.NoError(t, err)
+
+			allTests = append(allTests, marshalTestSpec{
+				name: majorDataType.String() + " " + test.nameSuffix,
+				data: data.Interface(),
+
+				inputNoRS:   string(valueBytes),
+				inputWithRS: string(rsValueBytes),
+
+				equivalent: equivalent.Interface(),
+			})
+		}
+	}
+
+	runMarshalTest(t, allTests)
+}
+
 func TestBaseField_MarshalYAML(t *testing.T) {
-	valTrue := true
-	valFalse := false
-	pTrue := &valTrue
-	pFalse := &valFalse
 
 	type (
 		Foo              struct{ Foo string }
@@ -20,164 +347,32 @@ func TestBaseField_MarshalYAML(t *testing.T) {
 			BaseField
 			Foo string
 		}
+
+		_l3_embedded struct {
+			L3Value string
+		}
+		_l2_embedded struct {
+			L2Value _l3_embedded `yaml:",inline"`
+		}
+		MultiLevelEmbedded struct {
+			L1Value _l2_embedded `yaml:",inline"`
+		}
+
+		_l3_embedded_rs struct {
+			BaseField
+			L3Value string
+		}
+		_l2_embedded_rs struct {
+			BaseField
+			L2Value _l3_embedded_rs `yaml:",inline"`
+		}
+		MultiLevelEmbeddedWithBaseField struct {
+			BaseField
+			L1Value _l2_embedded_rs `yaml:",inline"`
+		}
 	)
 
-	tests := []struct {
-		name string
-
-		data Field
-
-		inputNoRS   string
-		inputWithRS string
-
-		equivalent interface{}
-	}{
-		{
-			name: "Empty",
-			data: &struct{ BaseField }{},
-
-			inputNoRS:   "",
-			inputWithRS: "",
-
-			equivalent: &struct{}{},
-		},
-
-		{
-			name: "String",
-			data: &struct {
-				BaseField
-				Str string
-			}{Str: "str"},
-
-			inputNoRS:   "str: str",
-			inputWithRS: "str@echo: str",
-
-			equivalent: &struct{ Str string }{Str: "str"},
-		},
-
-		{
-			name: "Int",
-			data: &struct {
-				BaseField
-				Int int
-			}{Int: 100},
-
-			inputNoRS:   "int: 100",
-			inputWithRS: "int@echo: 100",
-
-			equivalent: &struct{ Int int }{Int: 100},
-		},
-
-		{
-			name: "Float",
-			data: &struct {
-				BaseField
-				Float float64
-			}{Float: 10.1},
-
-			inputNoRS:   "float: 10.1",
-			inputWithRS: "float@echo: 10.1",
-
-			equivalent: &struct{ Float float64 }{Float: 10.1},
-		},
-
-		{
-			name: "Bool Ptr with Value",
-			data: &struct {
-				BaseField
-				Bool *bool
-			}{Bool: pTrue},
-
-			inputNoRS:   "bool: true",
-			inputWithRS: "bool@echo: true",
-
-			equivalent: &struct{ Bool *bool }{Bool: pTrue},
-		},
-
-		{
-			name: "Bool Ptr No Value",
-			data: &struct {
-				BaseField
-				Bool *bool
-			}{Bool: nil},
-
-			inputNoRS:   "bool: null",
-			inputWithRS: "bool@echo: ",
-
-			equivalent: &struct{ Bool *bool }{Bool: nil},
-		},
-
-		{
-			name: "Bool Ptr No Value omitempty",
-			data: &struct {
-				BaseField
-				Bool *bool `yaml:",omitempty"`
-			}{Bool: nil},
-
-			inputNoRS:   "bool: ",
-			inputWithRS: "bool@echo: null",
-
-			equivalent: &struct {
-				Bool *bool `yaml:",omitempty"`
-			}{Bool: nil},
-		},
-		{
-			name: "Bool Ptr with Value omitempty",
-			data: &struct {
-				BaseField
-				Bool *bool `yaml:",omitempty"`
-			}{Bool: pFalse},
-
-			inputNoRS:   "bool: false",
-			inputWithRS: "bool@echo: false",
-
-			equivalent: &struct {
-				Bool *bool `yaml:",omitempty"`
-			}{Bool: pFalse},
-		},
-
-		{
-			name: "Slice Nil",
-			data: &struct {
-				BaseField
-				Slice []bool
-			}{Slice: nil},
-
-			inputNoRS:   "",
-			inputWithRS: "",
-
-			equivalent: &struct {
-				Slice []bool
-			}{Slice: nil},
-		},
-		{
-			name: "Slice Empty",
-			data: &struct {
-				BaseField
-				Slice []bool
-			}{Slice: make([]bool, 0)},
-
-			inputNoRS:   "slice: []",
-			inputWithRS: "slice@echo: []",
-
-			equivalent: &struct {
-				Slice []bool
-			}{Slice: make([]bool, 0)},
-		},
-		{
-			name: "Slice omitempty",
-			data: &struct {
-				BaseField
-				Slice []bool `yaml:",omitempty"`
-			}{Slice: make([]bool, 0)},
-
-			inputNoRS:   "slice: []",
-			inputWithRS: "slice@echo: []",
-
-			equivalent: &struct {
-				Slice []bool `yaml:",omitempty"`
-			}{Slice: make([]bool, 0)},
-		},
+	tests := []marshalTestSpec{
 		{
 			// to address https://github.com/go-yaml/yaml/issues/362
 			name: "Inline Struct",
@@ -217,22 +412,27 @@ func TestBaseField_MarshalYAML(t *testing.T) {
 			}{Foo: Foo{Foo: "foo"}},
 		},
 
-		// 		{
-		// 			// to address https://github.com/go-yaml/yaml/issues/362
-		// 			name: "Multi level Embedded Inline Struct",
-		// 			data: &struct {
-		// 				BaseField
-		//
-		// 				FooWithBaseField `yaml:",inline"`
-		// 			}{FooWithBaseField: FooWithBaseField{Foo: "foo"}},
-		//
-		// 			inputNoRS:   "foo: foo",
-		// 			inputWithRS: "foo@echo: foo",
-		//
-		// 			equivalent: &struct {
-		// 				Foo `yaml:",inline"`
-		// 			}{Foo: Foo{Foo: "foo"}},
-		// 		},
+		{
+			name: "Multi Level Embedded Inline Struct",
+			data: &MultiLevelEmbeddedWithBaseField{
+				L1Value: _l2_embedded_rs{
+					L2Value: _l3_embedded_rs{
+						L3Value: "foo",
+					},
+				},
+			},
+
+			inputNoRS:   "l3value: foo",
+			inputWithRS: "l3value@echo: foo",
+
+			equivalent: &MultiLevelEmbedded{
+				L1Value: _l2_embedded{
+					L2Value: _l3_embedded{
+						L3Value: "foo",
+					},
+				},
+			},
+		},
 
 		{
 			name: "Interface Nil",
@@ -307,48 +507,45 @@ func TestBaseField_MarshalYAML(t *testing.T) {
 				"c":   "d",
 			},
 		},
+		{
+			name: "Catch Other Not Nil",
+			data: &struct {
+				BaseField
+
+				Data map[string]*FooWithBaseField `rs:"other"`
+			}{Data: map[string]*FooWithBaseField{
+				"a": Init(&FooWithBaseField{Foo: "b"}, nil).(*FooWithBaseField),
+				"c": Init(&FooWithBaseField{Foo: "d"}, nil).(*FooWithBaseField),
+			}},
+
+			inputNoRS:   "{ a: {foo: b}, c: {foo: d}}",
+			inputWithRS: "{ a@echo: {foo@echo: b}, c@echo: {foo@echo: d}}",
+
+			equivalent: map[string]*Foo{
+				"a": {"b"},
+				"c": {"d"},
+			},
+		},
+		{
+			name: "Catch Other Nil",
+			data: &struct {
+				BaseField
+
+				Data map[string]*FooWithBaseField `rs:"other"`
+			}{Data: map[string]*FooWithBaseField{
+				"a": nil,
+				"c": nil,
+			}},
+
+			inputNoRS:   "{ a: null, c: }",
+			inputWithRS: "{ a@echo: null, c@echo: }",
+
+			equivalent: map[string]*Foo{
+				"a": nil,
+				"c": nil,
+			},
+		},
 	}
 
-	for _, test := range tests {
-		t.Run(test.name, func(t *testing.T) {
-			expectedBytes, err := yaml.Marshal(test.equivalent)
-			assert.NoError(t, err)
-
-			expected := string(expectedBytes)
-
-			t.Run("Direct Set", func(t *testing.T) {
-				ret, err := yaml.Marshal(Init(test.data, nil))
-				assert.NoError(t, err)
-
-				t.Log(string(ret))
-				assert.EqualValues(t, expected, string(ret))
-			})
-
-			newEmptyValue := func() Field {
-				return reflect.New(reflect.TypeOf(test.data).Elem()).Interface().(Field)
-			}
-
-			t.Run("After Unmarshal", func(t *testing.T) {
-				v := Init(newEmptyValue(), nil)
-				assert.NoError(t, yaml.Unmarshal([]byte(test.inputNoRS), v))
-
-				ret, err := yaml.Marshal(v)
-				assert.NoError(t, err)
-
-				assert.EqualValues(t, expected, string(ret))
-			})
-
-			t.Run("After Unmarshal And Resolve", func(t *testing.T) {
-				v := Init(newEmptyValue(), nil)
-				assert.NoError(t, yaml.Unmarshal([]byte(test.inputWithRS), v))
-
-				assert.NoError(t, v.ResolveFields(&testRenderingHandler{}, -1))
-
-				ret, err := yaml.Marshal(v)
-				assert.NoError(t, err)
-
-				assert.EqualValues(t, expected, string(ret))
-			})
-		})
-	}
+	runMarshalTest(t, tests)
 }
