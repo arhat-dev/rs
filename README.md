@@ -96,7 +96,7 @@ bar@a!: *foo
 ```
 
 __NOTE:__ This module provides no renderer implementation, and the only built-in renderer is a pseudo renderer with empty name that skips rendering (output is what input is) for data patching and type hinting purpose (e.g. `foo@?int!: { ... patch spec ... }`). You have to roll out your own renderers. If you are in a hurry and want some handy renderers, try [arhat.dev/pkg/rshelper.DefaultRenderingManager](https://pkg.go.dev/arhat.dev/pkg/rshelper#DefaultRenderingManager), it will give you `env`, `template` and `file` renderers.
-s
+
 ## Usage
 
 See [example_test.go](./example_test.go)

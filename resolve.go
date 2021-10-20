@@ -238,7 +238,10 @@ func (f *BaseField) handleUnResolvedField(
 				// apply type hint before patching to make sure value
 				// being patched is correctly typed
 				hint := renderer.typeHint
-				toResolve, err = applyTypeHint(hint, toResolve)
+				if hint == nil {
+					hint = TypeHintNone{}
+				}
+				toResolve, err = hint.apply(toResolve)
 				if err != nil {
 					return fmt.Errorf(
 						"failed to ensure type hint %q on yaml key %q: %w",
@@ -262,7 +265,10 @@ func (f *BaseField) handleUnResolvedField(
 
 			// apply hint after resolving (rendering)
 			hint := renderer.typeHint
-			toResolve, err = applyTypeHint(hint, toResolve)
+			if hint == nil {
+				hint = TypeHintNone{}
+			}
+			toResolve, err = hint.apply(toResolve)
 			if err != nil {
 				return fmt.Errorf(
 					"failed to ensure type hint %q on yaml key %q: %w",
