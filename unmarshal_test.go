@@ -8,6 +8,153 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+func TestBaseField_UnmarshalYAML_NoRS(t *testing.T) {
+	tests := []struct {
+		name string
+
+		input string
+		data  Field
+
+		equivalent interface{}
+
+		allowUnknown bool
+		expectErr    bool
+	}{
+		{
+			name:  "Simple No Tag Name",
+			input: `a: b`,
+			data: &struct {
+				BaseField
+				A string
+			}{},
+			equivalent: &struct {
+				A string
+			}{},
+		},
+		{
+			name:  "Simple With Tag Name",
+			input: `foo: b`,
+			data: &struct {
+				BaseField
+				A string `yaml:"foo"`
+			}{},
+			equivalent: &struct {
+				A string `yaml:"foo"`
+			}{},
+		},
+		{
+			name:         "Disallow Unknown Field",
+			input:        `foo: b`,
+			allowUnknown: false,
+			expectErr:    true,
+
+			data: &struct {
+				BaseField
+
+				A string
+			}{},
+		},
+		{
+			name:         "Allow Unknown Field",
+			input:        `foo: b`,
+			allowUnknown: true,
+			expectErr:    false,
+
+			data: &struct {
+				BaseField
+				A string
+			}{},
+			equivalent: &struct{ A string }{},
+		},
+		{
+			name:  "With @ In Tag Name",
+			input: `a@b: c`,
+			data: &struct {
+				BaseField
+
+				A string `yaml:"a@b"`
+			}{},
+
+			equivalent: &struct {
+				A string `yaml:"a@b"`
+			}{},
+		},
+		{
+			name: "Catch Other",
+
+			input: `{ a: b, c: d }`,
+			data: &struct {
+				BaseField
+
+				Data map[string]string `rs:"other"`
+			}{},
+
+			equivalent: &map[string]string{},
+		},
+		{
+			name: "Catch Other Behave Like Inline Map",
+
+			input: `{ a: b, c: d }`,
+			data: &struct {
+				BaseField
+
+				Data map[string]string `rs:"other"`
+			}{},
+
+			equivalent: &struct {
+				Data map[string]string `yaml:",inline"`
+			}{},
+		},
+		{
+			name: "Catch Other Indicated As Inline Map",
+
+			input: `{ a: b, c: d }`,
+			data: &struct {
+				BaseField
+
+				Data map[string]string `yaml:",inline"`
+			}{},
+
+			equivalent: &struct {
+				Data map[string]string `yaml:",inline"`
+			}{},
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			err := yaml.Unmarshal([]byte(test.input), Init(test.data, &Options{
+				AllowUnknownFields: test.allowUnknown,
+			}))
+			if test.expectErr {
+				assert.Error(t, err)
+				return
+			}
+
+			assert.NoError(t, err)
+			assert.NoError(t,
+				yaml.Unmarshal([]byte(test.input), test.equivalent),
+			)
+
+			baseField := reflect.ValueOf(test.data).Elem().Field(0)
+
+			// should have no unresolved value
+			assert.Len(t, baseField.Interface().(BaseField).unresolvedFields, 0)
+
+			actualData := reflect.ValueOf(test.data).Elem().Field(1).Interface()
+
+			var expected interface{}
+			if reflect.TypeOf(test.equivalent).Elem().Kind() == reflect.Struct {
+				expected = reflect.ValueOf(test.equivalent).Elem().Field(0).Interface()
+			} else {
+				expected = reflect.ValueOf(test.equivalent).Elem().Interface()
+			}
+
+			assert.EqualValues(t, expected, actualData)
+		})
+	}
+}
+
 func TestBaseField_UnmarshalYAML(t *testing.T) {
 	type Inline struct {
 		BaseField
@@ -19,10 +166,11 @@ func TestBaseField_UnmarshalYAML(t *testing.T) {
 	type Foo struct {
 		BaseField
 
-		Str     string            `yaml:"str"`
-		StrPtr  *string           `yaml:"str_ptr"`
-		BoolPtr *bool             `yaml:"bool_ptr"`
-		Other   map[string]string `rs:"other"`
+		Str     string  `yaml:"str"`
+		StrPtr  *string `yaml:"str_ptr"`
+		BoolPtr *bool   `yaml:"bool_ptr"`
+
+		Other map[string]string `yaml:",inline" rs:"other"`
 
 		InlineWithBaseField Inline `yaml:",inline"`
 	}
@@ -37,7 +185,7 @@ func TestBaseField_UnmarshalYAML(t *testing.T) {
 		expectUnmarshalErr bool
 	}{
 		{
-			name: "basic",
+			name: "Basic",
 			yaml: `str: bar`,
 
 			expectedResolved: &Foo{Str: "bar"},
@@ -47,7 +195,7 @@ func TestBaseField_UnmarshalYAML(t *testing.T) {
 			},
 		},
 		{
-			name: "basic nil",
+			name: "Basic Nil",
 			yaml: `str: `,
 
 			expectedResolved: &Foo{},
@@ -57,7 +205,7 @@ func TestBaseField_UnmarshalYAML(t *testing.T) {
 			},
 		},
 		{
-			name: "basic ptr nil",
+			name: "Basic Ptr Nil",
 			yaml: `
 str_ptr: null
 bool_ptr: null
@@ -70,7 +218,7 @@ bool_ptr: null
 			},
 		},
 		{
-			name: "basic+renderer",
+			name: "Renderer",
 			yaml: `str@add-suffix-test: bar`,
 
 			expectedResolved: &Foo{Str: "bar-test"},
@@ -81,7 +229,7 @@ bool_ptr: null
 							fieldName:   "Str",
 							fieldValue:  reflect.Value{},
 							rawDataList: []*alterInterface{{scalarData: "bar"}},
-							renderers:   []*suffixSpec{{name: "add-suffix-test"}},
+							renderers:   []*rendererSpec{{name: "add-suffix-test"}},
 						},
 					},
 				},
@@ -89,13 +237,13 @@ bool_ptr: null
 			},
 		},
 		{
-			name: "catchAll same yaml key + renderer",
+			name: "CatchOther Duplicate Yaml key",
 			yaml: `{other@echo: foo, other@echo|echo: bar}`,
 
 			expectUnmarshalErr: true,
 		},
 		{
-			name: "catchAll different yaml key + renderer",
+			name: "CatchOther",
 			yaml: `{ other_field_1@echo: foo, other_field_2@add-suffix-test: bar }`,
 
 			expectedResolved: &Foo{
@@ -122,7 +270,7 @@ bool_ptr: null
 									},
 								},
 							},
-							renderers:         []*suffixSpec{{name: "echo"}},
+							renderers:         []*rendererSpec{{name: "echo"}},
 							isCatchOtherField: true,
 						},
 						"other_field_2": {
@@ -133,7 +281,7 @@ bool_ptr: null
 									"other_field_2": {scalarData: "bar"},
 								},
 							}},
-							renderers:         []*suffixSpec{{name: "add-suffix-test"}},
+							renderers:         []*rendererSpec{{name: "add-suffix-test"}},
 							isCatchOtherField: true,
 						},
 					},
@@ -175,7 +323,7 @@ array@echo|echo|echo: |-
 								rawDataList: []*alterInterface{{
 									scalarData: "c: e",
 								}},
-								renderers: []*suffixSpec{
+								renderers: []*rendererSpec{
 									{name: "echo"},
 									{name: "echo"},
 								},
@@ -190,7 +338,7 @@ array@echo|echo|echo: |-
 - "4"
 - '5'`,
 								}},
-								renderers: []*suffixSpec{
+								renderers: []*rendererSpec{
 									{name: "echo"},
 									{name: "echo"},
 									{name: "echo"},
