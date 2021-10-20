@@ -342,7 +342,7 @@ type unresolvedFieldSpec struct {
 	fieldName   string
 	fieldValue  reflect.Value
 	rawDataList []*alterInterface
-	renderers   []*suffixSpec
+	renderers   []*rendererSpec
 
 	isCatchOtherField bool
 }
@@ -391,22 +391,22 @@ func (f *BaseField) addUnresolvedField(
 	}
 }
 
-type suffixSpec struct {
+type rendererSpec struct {
 	name string
 
 	patchSpec bool
 	typeHint  TypeHint
 }
 
-func parseRenderingSuffix(rs string) []*suffixSpec {
-	var ret []*suffixSpec
+func parseRenderingSuffix(rs string) []*rendererSpec {
+	var ret []*rendererSpec
 	for _, part := range strings.Split(rs, "|") {
 		size := len(part)
 		if size == 0 {
 			continue
 		}
 
-		spec := &suffixSpec{
+		spec := &rendererSpec{
 			patchSpec: part[size-1] == '!',
 		}
 
