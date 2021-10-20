@@ -4,7 +4,6 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
-	"sort"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -38,9 +37,15 @@ func (f *BaseField) UnmarshalYAML(n *yaml.Node) error {
 
 	// set values
 	for rawYamlKey, v := range m {
-		suffixAt := strings.LastIndexByte(rawYamlKey, '@')
+		suffixStart := strings.LastIndexByte(rawYamlKey, '@')
 		yamlKey := rawYamlKey
-		if suffixAt == -1 {
+
+		// check yaml key from existing fields even with "rendering suffix"
+		// cause you can have your tag `yaml:"foo@http"`, then your yaml key
+		// is foo@http, not foo with rendering suffix @http
+
+		fSpec := f.getField(yamlKey)
+		if suffixStart == -1 || fSpec != nil {
 			// no rendering suffix, fill value directly
 
 			if _, ok := handledYamlValues[yamlKey]; ok {
@@ -52,7 +57,6 @@ func (f *BaseField) UnmarshalYAML(n *yaml.Node) error {
 
 			handledYamlValues[yamlKey] = struct{}{}
 
-			fSpec := f.getField(yamlKey)
 			if fSpec == nil {
 				if f.catchOtherField == nil {
 					if allowUnknown {
@@ -60,7 +64,7 @@ func (f *BaseField) UnmarshalYAML(n *yaml.Node) error {
 					}
 
 					return fmt.Errorf(
-						"rs: unknown yaml field %q in %s",
+						"rs: unknown yaml field %q for %s",
 						yamlKey, f._parentType.String(),
 					)
 				}
@@ -81,7 +85,7 @@ func (f *BaseField) UnmarshalYAML(n *yaml.Node) error {
 			)
 			if err != nil {
 				return fmt.Errorf(
-					"rs: failed to unmarshal yaml field %q to struct field %s.%s: %w",
+					"rs: failed to unmarshal yaml field %q to %s.%s: %w",
 					yamlKey, f._parentType.String(), fSpec.fieldName, err,
 				)
 			}
@@ -91,17 +95,17 @@ func (f *BaseField) UnmarshalYAML(n *yaml.Node) error {
 
 		// has rendering suffix
 
-		yamlKey, suffix := rawYamlKey[:suffixAt], rawYamlKey[suffixAt+1:]
+		yamlKey, suffix := rawYamlKey[:suffixStart], rawYamlKey[suffixStart+1:]
 
 		if _, ok := handledYamlValues[yamlKey]; ok {
 			return fmt.Errorf(
-				"rs: duplicate yaml field name %q for %s, please note"+
+				"rs: duplicate yaml data field %q for %s, please note"+
 					" rendering suffix won't change the field name",
 				yamlKey, f._parentType.String(),
 			)
 		}
 
-		fSpec := f.getField(yamlKey)
+		fSpec = f.getField(yamlKey)
 		if fSpec == nil {
 			if f.catchOtherField == nil {
 				if allowUnknown {
@@ -136,25 +140,7 @@ func (f *BaseField) UnmarshalYAML(n *yaml.Node) error {
 		)
 	}
 
-	for k := range handledYamlValues {
-		delete(m, k)
-	}
-
-	if len(m) == 0 {
-		// all values consumed
-		return nil
-	}
-
-	var unknownFields []string
-	for k := range m {
-		unknownFields = append(unknownFields, k)
-	}
-	sort.Strings(unknownFields)
-
-	return fmt.Errorf(
-		"rs: unknown yaml fields to %s: %s",
-		f._parentType.String(), strings.Join(unknownFields, ", "),
-	)
+	return nil
 }
 
 func (f *BaseField) unmarshal(
