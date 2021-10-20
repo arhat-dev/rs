@@ -137,7 +137,7 @@ func TestBaseField_Inherit(t *testing.T) {
 						fieldName:         v.fieldName,
 						fieldValue:        reflect.Value{},
 						rawDataList:       append([]*alterInterface{}, v.rawDataList...),
-						renderers:         append([]*suffixSpec{}, v.renderers...),
+						renderers:         append([]*rendererSpec{}, v.renderers...),
 						isCatchOtherField: v.isCatchOtherField,
 					}
 				}
@@ -174,7 +174,7 @@ func TestBaseField_Inherit(t *testing.T) {
 						fieldName:         v.fieldName,
 						fieldValue:        reflect.Value{},
 						rawDataList:       append([]*alterInterface{}, v.rawDataList...),
-						renderers:         append([]*suffixSpec{}, v.renderers...),
+						renderers:         append([]*rendererSpec{}, v.renderers...),
 						isCatchOtherField: v.isCatchOtherField,
 					}
 				}
