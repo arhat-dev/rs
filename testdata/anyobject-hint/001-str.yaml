@@ -12,8 +12,8 @@ str: "str"
 str-from-float: "1.100"
 str-from-str: bar
 str-from-int: "100"
-str-from-map: |
+str-from-map: |-
   foo: bar
-str-from-arr: |
+str-from-arr: |-
   - foo
   - bar

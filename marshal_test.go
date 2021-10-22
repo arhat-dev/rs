@@ -448,7 +448,6 @@ func TestBaseField_MarshalYAML(t *testing.T) {
 				IFace yaml.Marshaler
 			}{IFace: nil},
 		},
-
 		{
 			name: "Struct Ptr Nil Panic if not check value kind",
 			data: &struct {

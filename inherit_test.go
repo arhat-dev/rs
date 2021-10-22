@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 )
 
 func TestBaseField_Inherit(t *testing.T) {
@@ -39,7 +40,7 @@ func TestBaseField_Inherit(t *testing.T) {
 				v := Init(&Foo{}, nil).(*Foo)
 				v.addUnresolvedField("data", "test", "Data",
 					v._parentValue.FieldByName("Data"), false,
-					&alterInterface{scalarData: "value-b"},
+					fakeScalarNode("value-b"),
 				)
 				return v
 			}(),
@@ -53,7 +54,7 @@ func TestBaseField_Inherit(t *testing.T) {
 				v := Init(&Foo{}, nil).(*Foo)
 				v.addUnresolvedField("data", "test", "Data",
 					v._parentValue.FieldByName("Data"), false,
-					&alterInterface{scalarData: "value-a"},
+					fakeScalarNode("value-a"),
 				)
 				return v
 			}(),
@@ -61,7 +62,7 @@ func TestBaseField_Inherit(t *testing.T) {
 				v := Init(&Foo{}, nil).(*Foo)
 				v.addUnresolvedField("data", "test", "Data",
 					v._parentValue.FieldByName("Data"), false,
-					&alterInterface{scalarData: "value-b"},
+					fakeScalarNode("value-b"),
 				)
 				return v
 			}(),
@@ -76,11 +77,7 @@ func TestBaseField_Inherit(t *testing.T) {
 				v := Init(&Foo{}, nil).(*Foo)
 				v.addUnresolvedField("b", "test", "Data",
 					v._parentValue.FieldByName("Data"), true,
-					&alterInterface{
-						mapData: map[string]*alterInterface{
-							"data": {scalarData: "test-data"},
-						},
-					},
+					fakeMap(fakeScalarNode("data"), fakeScalarNode("test-data")),
 				)
 				v.catchOtherCache = map[string]reflect.Value{
 					"a": reflect.ValueOf("cache-value"),
@@ -98,11 +95,7 @@ func TestBaseField_Inherit(t *testing.T) {
 				v := Init(&Foo{}, nil).(*Foo)
 				v.addUnresolvedField("a", "test", "Data",
 					v._parentValue.FieldByName("Data"), true,
-					&alterInterface{
-						mapData: map[string]*alterInterface{
-							"a": {scalarData: "test-data"},
-						},
-					},
+					fakeMap(fakeScalarNode("a"), fakeScalarNode("test-data")),
 				)
 				return v
 			}(),
@@ -110,11 +103,7 @@ func TestBaseField_Inherit(t *testing.T) {
 				v := Init(&Foo{}, nil).(*Foo)
 				v.addUnresolvedField("b", "test", "Data",
 					v._parentValue.FieldByName("Data"), true,
-					&alterInterface{
-						mapData: map[string]*alterInterface{
-							"b": {scalarData: "test-data"},
-						},
-					},
+					fakeMap(fakeScalarNode("b"), fakeScalarNode("test-data")),
 				)
 
 				return v
@@ -136,7 +125,7 @@ func TestBaseField_Inherit(t *testing.T) {
 					expectedUnresolvedFields[k] = &unresolvedFieldSpec{
 						fieldName:         v.fieldName,
 						fieldValue:        reflect.Value{},
-						rawDataList:       append([]*alterInterface{}, v.rawDataList...),
+						rawDataList:       append([]*yaml.Node{}, v.rawDataList...),
 						renderers:         append([]*rendererSpec{}, v.renderers...),
 						isCatchOtherField: v.isCatchOtherField,
 					}
@@ -173,7 +162,7 @@ func TestBaseField_Inherit(t *testing.T) {
 					expectedUnresolvedFields[k] = &unresolvedFieldSpec{
 						fieldName:         v.fieldName,
 						fieldValue:        reflect.Value{},
-						rawDataList:       append([]*alterInterface{}, v.rawDataList...),
+						rawDataList:       append([]*yaml.Node{}, v.rawDataList...),
 						renderers:         append([]*rendererSpec{}, v.renderers...),
 						isCatchOtherField: v.isCatchOtherField,
 					}

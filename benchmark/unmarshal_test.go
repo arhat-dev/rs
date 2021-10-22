@@ -137,18 +137,16 @@ func BenchmarkUnmarshal_untyped(b *testing.B) {
 				}
 			})
 
-			b.Run("goccy-yaml", func(b *testing.B) {
-				// goccy-yaml hangs forever
-				b.SkipNow()
-				var out interface{}
-
-				b.ResetTimer()
-				for i := 0; i < b.N; i++ {
-					if err := goccy_yaml.Unmarshal(specYaml, &out); err != nil {
-						b.Fail()
-					}
-				}
-			})
+			// goccy-yaml hangs forever
+			// b.Run("goccy-yaml", func(b *testing.B) {
+			// 	var out interface{}
+			// 	b.ResetTimer()
+			// 	for i := 0; i < b.N; i++ {
+			// 		if err := goccy_yaml.Unmarshal(specYaml, &out); err != nil {
+			// 			b.Fail()
+			// 		}
+			// 	}
+			// })
 
 			b.Run("rs", func(b *testing.B) {
 				var out rs.AnyObject
