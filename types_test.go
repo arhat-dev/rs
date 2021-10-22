@@ -27,7 +27,7 @@ func TestInterfaceTypeHandleFunc_Create(t *testing.T) {
 
 func TestRenderingHandler_RenderYaml(t *testing.T) {
 	called := false
-	f := RenderingHandleFunc(func(renderer string, rawData interface{}) (result interface{}, err error) {
+	f := RenderingHandleFunc(func(renderer string, rawData interface{}) (result []byte, err error) {
 		called = true
 		assert.EqualValues(t, "test", renderer)
 		assert.EqualValues(t, "rawData", rawData)

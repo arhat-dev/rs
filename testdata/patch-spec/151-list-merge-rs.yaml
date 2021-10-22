@@ -15,10 +15,11 @@ bar@!:
       - c@?str:
           d: e
   - value@echo:
+  - value:
 ---
 foo: [a, b, c, d]
 bar:
 - a
 - b: b-test
-- c: |
+- c: |-
     d: e

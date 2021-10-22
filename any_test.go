@@ -89,21 +89,6 @@ func TestAnyObject_NormalizedValue(t *testing.T) {
 		})
 	})
 
-	t.Run("original-node", func(t *testing.T) {
-		obj := &AnyObject{
-			originalNode: &yaml.Node{},
-			scalarData:   1.1,
-		}
-		t.Run("normalized", func(t *testing.T) {
-			assert.NotNil(t, obj.NormalizedValue())
-			assert.IsType(t, 1.1, obj.NormalizedValue())
-		})
-		t.Run("raw", func(t *testing.T) {
-			assert.NotNil(t, obj.value())
-			assert.IsType(t, &yaml.Node{}, obj.value())
-		})
-	})
-
 	t.Run("scalar-not-nil", func(t *testing.T) {
 		obj := &AnyObject{
 			scalarData: "test",
@@ -284,7 +269,7 @@ func TestAnyObject(t *testing.T) {
 			},
 		},
 		{
-			name:  "Merging Non-nil",
+			name:  "Merge Non-nil",
 			input: `foo@echo!: { value: { bar: woo }, merge: [{ value: { woo: bar } }, { value: { foo: woo } }] }`,
 
 			expectedUnmarshaled: &AnyObject{
@@ -314,7 +299,7 @@ func TestAnyObject(t *testing.T) {
 			},
 		},
 		{
-			name:  "Merging nil",
+			name:  "Merge nil",
 			input: `foo@echo!: { merge: [{ value: { woo: bar } }, { value: { foo: woo } }] }`,
 
 			expectedUnmarshaled: &AnyObject{
@@ -348,7 +333,7 @@ func TestAnyObject(t *testing.T) {
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 
-			t.Run("unmarshal", func(t *testing.T) {
+			t.Run("Unmarshal", func(t *testing.T) {
 				obj := &AnyObject{}
 
 				assert.NoError(t, yaml.Unmarshal([]byte(test.input), obj))
@@ -356,7 +341,7 @@ func TestAnyObject(t *testing.T) {
 				assert.EqualValues(t, test.expectedUnmarshaled, obj)
 			})
 
-			t.Run("resolve+marshal", func(t *testing.T) {
+			t.Run("Resolve and Marshal", func(t *testing.T) {
 				obj := &AnyObject{}
 
 				assert.NoError(t, yaml.Unmarshal([]byte(test.input), obj))
@@ -388,6 +373,10 @@ func TestAnyObject_WithHint(t *testing.T) {
 }
 
 func unsetAnyObjectBaseField(obj *AnyObject) {
+	if obj == nil {
+		return
+	}
+
 	if obj.mapData != nil {
 		obj.mapData.BaseField = BaseField{}
 		for _, v := range obj.mapData.Data {

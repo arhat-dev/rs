@@ -5,6 +5,8 @@ import (
 	"reflect"
 	"strings"
 	"sync/atomic"
+
+	"gopkg.in/yaml.v3"
 )
 
 type BaseField struct {
@@ -341,7 +343,7 @@ func (f *BaseField) getField(yamlKey string) *fieldRef {
 type unresolvedFieldSpec struct {
 	fieldName   string
 	fieldValue  reflect.Value
-	rawDataList []*alterInterface
+	rawDataList []*yaml.Node
 	renderers   []*rendererSpec
 
 	isCatchOtherField bool
@@ -356,7 +358,7 @@ func (f *BaseField) addUnresolvedField(
 	fieldName string,
 	fieldValue reflect.Value,
 	isCatchOtherField bool,
-	rawData *alterInterface,
+	rawData *yaml.Node,
 ) {
 	if f.unresolvedFields == nil {
 		f.unresolvedFields = make(map[string]*unresolvedFieldSpec)
@@ -384,7 +386,7 @@ func (f *BaseField) addUnresolvedField(
 	f.unresolvedFields[yamlKey] = &unresolvedFieldSpec{
 		fieldName:   fieldName,
 		fieldValue:  fieldValue,
-		rawDataList: []*alterInterface{rawData},
+		rawDataList: []*yaml.Node{rawData},
 		renderers:   parseRenderingSuffix(suffix),
 
 		isCatchOtherField: isCatchOtherField,
@@ -433,30 +435,3 @@ func parseRenderingSuffix(rs string) []*rendererSpec {
 
 	return ret
 }
-
-// TODO: shall we generate type hint for those without one?
-// func generateTypeHintForType(typ reflect.Type) TypeHint {
-// 	switch typ.Kind() {
-// 	case reflect.Int, reflect.Int8, reflect.Int16,
-// 		reflect.Int32, reflect.Int64:
-// 		return TypeHintInt
-// 	case reflect.Uint, reflect.Uint8, reflect.Uint16,
-// 		reflect.Uint32, reflect.Uint64, reflect.Uintptr:
-// 		return TypeHintInt
-// 	case reflect.Float32, reflect.Float64:
-// 		return TypeHintFloat
-// 	case reflect.String:
-// 		return TypeHintStr
-// 	case reflect.Array, reflect.Slice:
-// 		switch typ.Elem().Kind() {
-// 		case reflect.Uint8:
-// 			return TypeHintBytes
-// 		default:
-// 			return TypeHintObjects
-// 		}
-// 	case reflect.Map, reflect.Struct:
-// 		return TypeHintObject
-// 	default:
-// 		return TypeHintNone
-// 	}
-// }

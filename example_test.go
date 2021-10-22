@@ -29,12 +29,16 @@ func ExampleBaseField_ResolveFields() {
 	err = s.ResolveFields(
 		// implement your own renderer
 		rs.RenderingHandleFunc(
-			func(renderer string, rawData interface{}) (result interface{}, err error) {
-				switch dt := rawData.(type) {
+			func(renderer string, rawData interface{}) (result []byte, err error) {
+				switch vt := rawData.(type) {
 				case string:
-					return dt, nil
+					return []byte(vt), nil
+				case []byte:
+					return vt, nil
+				case *yaml.Node:
+					return []byte("hello"), nil
 				default:
-					return "hello", nil
+					return yaml.Marshal(vt)
 				}
 			},
 		),

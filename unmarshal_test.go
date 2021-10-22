@@ -1,6 +1,8 @@
 package rs
 
 import (
+	"encoding/base64"
+	"fmt"
 	"reflect"
 	"testing"
 
@@ -228,7 +230,7 @@ bool_ptr: null
 						"str": {
 							fieldName:   "Str",
 							fieldValue:  reflect.Value{},
-							rawDataList: []*alterInterface{{scalarData: "bar"}},
+							rawDataList: []*yaml.Node{fakeScalarNode("bar")},
 							renderers:   []*rendererSpec{{name: "add-suffix-test"}},
 						},
 					},
@@ -263,12 +265,8 @@ bool_ptr: null
 						"other_field_1": {
 							fieldName:  "Other",
 							fieldValue: reflect.Value{},
-							rawDataList: []*alterInterface{
-								{
-									mapData: map[string]*alterInterface{
-										"other_field_1": {scalarData: "foo"},
-									},
-								},
+							rawDataList: []*yaml.Node{
+								fakeMap(fakeScalarNode("other_field_1"), fakeScalarNode("foo")),
 							},
 							renderers:         []*rendererSpec{{name: "echo"}},
 							isCatchOtherField: true,
@@ -276,11 +274,9 @@ bool_ptr: null
 						"other_field_2": {
 							fieldName:  "Other",
 							fieldValue: reflect.Value{},
-							rawDataList: []*alterInterface{{
-								mapData: map[string]*alterInterface{
-									"other_field_2": {scalarData: "bar"},
-								},
-							}},
+							rawDataList: []*yaml.Node{
+								fakeMap(fakeScalarNode("other_field_2"), fakeScalarNode("bar")),
+							},
 							renderers:         []*rendererSpec{{name: "add-suffix-test"}},
 							isCatchOtherField: true,
 						},
@@ -320,9 +316,9 @@ array@echo|echo|echo: |-
 							"string_map": {
 								fieldName:  "StringMap",
 								fieldValue: reflect.Value{},
-								rawDataList: []*alterInterface{{
-									scalarData: "c: e",
-								}},
+								rawDataList: []*yaml.Node{
+									fakeScalarNode("c: e"),
+								},
 								renderers: []*rendererSpec{
 									{name: "echo"},
 									{name: "echo"},
@@ -331,13 +327,13 @@ array@echo|echo|echo: |-
 							"array": {
 								fieldName:  "Array",
 								fieldValue: reflect.Value{},
-								rawDataList: []*alterInterface{{
-									scalarData: `- "1"
+								rawDataList: []*yaml.Node{
+									fakeScalarNode(`- "1"
 - "2"
 - "3"
 - "4"
-- '5'`,
-								}},
+- '5'`),
+								},
 								renderers: []*rendererSpec{
 									{name: "echo"},
 									{name: "echo"},
@@ -368,26 +364,8 @@ array@echo|echo|echo: |-
 				}
 
 				// reset for assertion
-				out._initialized = 0
-				out._parentValue = reflect.Value{}
-				out._parentType = nil
-				out.normalFields = nil
-				out.catchOtherCache = nil
-				out.catchOtherField = nil
-				for k := range out.unresolvedFields {
-					out.unresolvedFields[k].fieldValue = reflect.Value{}
-				}
-
-				// assert.EqualValues(t, 1, out.InlineWithBaseField._initialized)
-				out.InlineWithBaseField._initialized = 0
-				out.InlineWithBaseField._parentValue = reflect.Value{}
-				out.InlineWithBaseField._parentType = nil
-				out.InlineWithBaseField.normalFields = nil
-				out.InlineWithBaseField.catchOtherCache = nil
-				out.InlineWithBaseField.catchOtherField = nil
-				for k := range out.InlineWithBaseField.unresolvedFields {
-					out.InlineWithBaseField.unresolvedFields[k].fieldValue = reflect.Value{}
-				}
+				cleanupBaseField(t, &out.BaseField)
+				cleanupBaseField(t, &out.InlineWithBaseField.BaseField)
 
 				// expected := Init(test.expectedUnmarshaled, nil).(*Foo)
 				// expected._parentValue = reflect.Value{}
@@ -422,6 +400,79 @@ array@echo|echo|echo: |-
 			})
 		})
 	}
+}
+
+func fakeScalarNode(i interface{}) *yaml.Node {
+	var (
+		data []byte
+		tag  string
+	)
+	switch v := i.(type) {
+	case bool:
+		tag = boolTag
+	case string:
+		tag = strTag
+		data = []byte(v)
+	case []byte:
+		tag = binaryTag
+		data = []byte(tag + " " + base64.StdEncoding.EncodeToString(v))
+	case float32, float64:
+		tag = floatTag
+	case int, int8, int16, int32, int64,
+		uint, uint8, uint16, uint32, uint64, uintptr:
+		tag = intTag
+	default:
+		panic(fmt.Errorf("invalid non scalar value %T: %v", i, i))
+	}
+
+	switch vt := i.(type) {
+	case string, []byte:
+		// already set before
+	default:
+		var err error
+		data, err = yaml.Marshal(vt)
+		if err != nil {
+			panic(err)
+		}
+	}
+
+	return &yaml.Node{
+		Kind:  yaml.ScalarNode,
+		Tag:   tag,
+		Value: string(data),
+	}
+}
+
+func cleanupBaseField(t *testing.T, f *BaseField) {
+	_ = t
+	if f == nil {
+		return
+	}
+
+	f._initialized = 0
+	f._parentValue = reflect.Value{}
+	f._parentType = nil
+	f.normalFields = nil
+	f.catchOtherCache = nil
+	f.catchOtherField = nil
+	for k := range f.unresolvedFields {
+		f.unresolvedFields[k].fieldValue = reflect.Value{}
+		list := f.unresolvedFields[k].rawDataList
+		for i := range list {
+			// assert.NotNil(t, list[i].originalNode)
+			cleanupYamlNode(list[i])
+		}
+	}
+}
+
+func cleanupYamlNode(n *yaml.Node) {
+	for _, cn := range n.Content {
+		cleanupYamlNode(cn)
+	}
+
+	n.Line = 0
+	n.Style = 0
+	n.Column = 0
 }
 
 func TestBaseField_UnmarshalYAML_Mixed_CatchOther(t *testing.T) {

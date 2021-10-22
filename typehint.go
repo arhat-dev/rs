@@ -1,13 +1,16 @@
 package rs
 
 import (
+	"encoding/base64"
 	"fmt"
+	"strconv"
+	"strings"
 
 	"gopkg.in/yaml.v3"
 )
 
 type TypeHint interface {
-	apply(*alterInterface) (*alterInterface, error)
+	apply(*yaml.Node) (*yaml.Node, error)
 
 	String() string
 }
@@ -15,82 +18,208 @@ type TypeHint interface {
 type (
 	TypeHintNone    struct{}
 	TypeHintStr     struct{}
-	TypeHintBytes   struct{}
 	TypeHintObject  struct{}
 	TypeHintObjects struct{}
 	TypeHintInt     struct{}
-	TypeHintUint    struct{}
 	TypeHintFloat   struct{}
 )
 
 func (TypeHintNone) String() string    { return "" }
 func (TypeHintStr) String() string     { return "str" }
-func (TypeHintBytes) String() string   { return "[]byte" }
 func (TypeHintObject) String() string  { return "obj" }
 func (TypeHintObjects) String() string { return "[]obj" }
 func (TypeHintInt) String() string     { return "int" }
-func (TypeHintUint) String() string    { return "uint" }
 func (TypeHintFloat) String() string   { return "float" }
 
-func (TypeHintNone) apply(v *alterInterface) (*alterInterface, error) {
-	// no hint, use default behavior:
-	// 	return string value if unmarshal failed or result
-	//  is string or []byte
+func (TypeHintNone) apply(v *yaml.Node) (*yaml.Node, error) {
+	return prepareYamlNode(v), nil
+}
 
-	var rawBytes []byte
-	switch vt := v.scalarData.(type) {
-	case string:
-		rawBytes = []byte(vt)
-	case []byte:
-		rawBytes = vt
-	default:
-		return v, nil
+func (thi TypeHintStr) apply(n *yaml.Node) (*yaml.Node, error) {
+	switch {
+	case isStrScalar(n), isBinaryScalar(n):
+		return n, nil
 	}
 
-	tmp := new(alterInterface)
-	err := yaml.Unmarshal(rawBytes, tmp)
+	data, err := yaml.Marshal(n)
 	if err != nil {
-		// couldn't unmarshal, return original value in string format
-		return &alterInterface{
-			scalarData: string(rawBytes),
-		}, nil
+		return nil, err
 	}
 
-	switch tmp.Value().(type) {
-	case string, []byte, nil:
-		// yaml.Unmarshal will do some transformation on plaintext value
-		// when it's not valid yaml, so return the original value
-		return &alterInterface{
-			scalarData: string(rawBytes),
-		}, nil
+	return &yaml.Node{
+		Kind:  yaml.ScalarNode,
+		Tag:   strTag,
+		Value: strings.TrimSuffix(string(data), "\n"),
+	}, nil
+}
+
+func (tho TypeHintObject) apply(n *yaml.Node) (*yaml.Node, error) {
+	n = prepareYamlNode(n)
+	if n == nil || isNull(n) {
+		return nil, nil
+	}
+
+	switch n.Kind {
+	case yaml.MappingNode:
+		return n, nil
+	case yaml.ScalarNode:
+		// can be string, convert to object
+		var dataBytes []byte
+		switch {
+		case isStrScalar(n):
+			dataBytes = []byte(n.Value)
+		case isBinaryScalar(n):
+			var err error
+			dataBytes, err = base64.StdEncoding.DecodeString(n.Value)
+			if err != nil {
+				return nil, err
+			}
+		default:
+			return nil, fmt.Errorf(
+				"unsupported non str nor binary scalar node to object conversion",
+			)
+		}
+
+		ret := new(yaml.Node)
+		err := yaml.Unmarshal(dataBytes, ret)
+		if err != nil {
+			return nil, err
+		}
+
+		ret = prepareYamlNode(ret)
+		switch {
+		case ret == nil:
+			return nil, nil
+		case ret.Kind == yaml.MappingNode:
+			return ret, nil
+		default:
+		}
+
+		fallthrough
 	default:
-		return tmp, nil
+		return nil, fmt.Errorf("cannot convert %q to object", n.Kind)
 	}
 }
 
-func incompatibleTypeError(h TypeHint, v interface{}) error {
-	return fmt.Errorf("typehint.%s: incompatible type %T", h, v)
+func (tho TypeHintObjects) apply(n *yaml.Node) (*yaml.Node, error) {
+	n = prepareYamlNode(n)
+	if n == nil || isNull(n) {
+		return nil, nil
+	}
+
+	switch n.Kind {
+	case yaml.SequenceNode:
+		return n, nil
+	case yaml.ScalarNode:
+		// can be string, convert to object
+		var dataBytes []byte
+		switch {
+		case isStrScalar(n):
+			dataBytes = []byte(n.Value)
+		case isBinaryScalar(n):
+			var err error
+			dataBytes, err = base64.StdEncoding.DecodeString(n.Value)
+			if err != nil {
+				return nil, err
+			}
+		default:
+			return nil, fmt.Errorf(
+				"unsupported non str nor binary scalar node to objects conversion",
+			)
+		}
+
+		ret := new(yaml.Node)
+		err := yaml.Unmarshal(dataBytes, ret)
+		if err != nil {
+			return nil, err
+		}
+
+		ret = prepareYamlNode(ret)
+		switch {
+		case ret == nil:
+			return nil, nil
+		case ret.Kind == yaml.SequenceNode:
+			return ret, nil
+		default:
+		}
+
+		fallthrough
+	default:
+		return nil, fmt.Errorf("cannot convert %q to objects", n.Tag)
+	}
+}
+
+func (TypeHintFloat) apply(n *yaml.Node) (*yaml.Node, error) {
+	return scalarNodeToScalarNode(n, floatTag)
+}
+
+func (TypeHintInt) apply(n *yaml.Node) (*yaml.Node, error) {
+	return scalarNodeToScalarNode(n, intTag)
+}
+
+func scalarNodeToScalarNode(n *yaml.Node, newTag string) (*yaml.Node, error) {
+	n = prepareYamlNode(n)
+	if n == nil || isNull(n) {
+		return nil, nil
+	}
+
+	if n.Kind != yaml.ScalarNode {
+		return nil, fmt.Errorf(
+			"unexpected non scalar node for %q", newTag,
+		)
+	}
+
+	switch {
+	case n.Tag == newTag, shortTag(n.Tag) == newTag:
+		return n, nil
+	}
+
+	ret := cloneYamlNode(n, newTag, n.Value)
+	switch newTag {
+	case strTag, binaryTag:
+	default:
+		val, err := strconv.Unquote(n.Value)
+		if err != nil {
+			// was not quoted
+			val = n.Value
+		}
+		ret.Value = val
+	}
+
+	return ret, nil
+}
+
+func cloneYamlNode(n *yaml.Node, tag, value string) *yaml.Node {
+	return &yaml.Node{
+		Kind:        n.Kind,
+		Style:       n.Style,
+		Tag:         tag,
+		Value:       value,
+		Anchor:      n.Anchor,
+		Alias:       n.Alias,
+		Content:     n.Content,
+		HeadComment: n.HeadComment,
+		LineComment: n.LineComment,
+		FootComment: n.FootComment,
+		Line:        n.Line,
+		Column:      n.Column,
+	}
+}
+
+var supportedTypeHints = map[string]TypeHint{
+	"":      TypeHintNone{},
+	"str":   TypeHintStr{},
+	"[]obj": TypeHintObjects{},
+	"obj":   TypeHintObject{},
+	"int":   TypeHintInt{},
+	"float": TypeHintFloat{},
 }
 
 func ParseTypeHint(h string) (TypeHint, error) {
-	switch h {
-	case "":
-		return TypeHintNone{}, nil
-	case "str":
-		return TypeHintStr{}, nil
-	case "[]byte":
-		return TypeHintBytes{}, nil
-	case "[]obj":
-		return TypeHintObjects{}, nil
-	case "obj":
-		return TypeHintObject{}, nil
-	case "int":
-		return TypeHintInt{}, nil
-	case "uint":
-		return TypeHintUint{}, nil
-	case "float":
-		return TypeHintFloat{}, nil
-	default:
+	ret, ok := supportedTypeHints[h]
+	if !ok {
 		return nil, fmt.Errorf("unknown type hint %q", h)
 	}
+
+	return ret, nil
 }

@@ -16,19 +16,32 @@ var _ RenderingHandler = (*testRenderingHandler)(nil)
 
 type testRenderingHandler struct{}
 
-func (h *testRenderingHandler) RenderYaml(renderer string, data interface{}) (result interface{}, err error) {
+func (h *testRenderingHandler) RenderYaml(renderer string, data interface{}) (result []byte, err error) {
+	var dataBytes []byte
+	switch vt := data.(type) {
+	case string:
+		dataBytes = []byte(vt)
+	case []byte:
+		dataBytes = vt
+	case *yaml.Node:
+		switch vt.ShortTag() {
+		case strTag:
+			dataBytes = []byte(vt.Value)
+		case binaryTag:
+			dataBytes = []byte(vt.Value)
+		default:
+			dataBytes, err = yaml.Marshal(data)
+		}
+	case nil:
+	default:
+		dataBytes, err = yaml.Marshal(vt)
+	}
+
 	switch renderer {
 	case "echo":
-		return data, nil
+		return dataBytes, err
 	case "add-suffix-test":
-		switch t := data.(type) {
-		case string:
-			return t + "-test", nil
-		case []byte:
-			return append(t, "-test"...), nil
-		default:
-			return nil, fmt.Errorf("unsupported non string nor bytes type: %T", data)
-		}
+		return append(dataBytes, "-test"...), err
 	case "err":
 		return nil, fmt.Errorf("always error")
 	case "empty":
