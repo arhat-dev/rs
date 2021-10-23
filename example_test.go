@@ -30,15 +30,20 @@ func ExampleBaseField_ResolveFields() {
 		// implement your own renderer
 		rs.RenderingHandleFunc(
 			func(renderer string, rawData interface{}) (result []byte, err error) {
+				// usually you should have rawData normalized as golang types
+				// so you don't have to tend to low level *yaml.Node objects
+				rawData, err = rs.NormalizeRawData(rawData)
+				if err != nil {
+					return nil, err
+				}
+
 				switch vt := rawData.(type) {
 				case string:
 					return []byte(vt), nil
 				case []byte:
 					return vt, nil
-				case *yaml.Node:
-					return []byte("hello"), nil
 				default:
-					return yaml.Marshal(vt)
+					return []byte("hello"), nil
 				}
 			},
 		),
