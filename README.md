@@ -61,17 +61,16 @@ As you may also be wondering how can `foo@env` be resolved as `foo` since they a
   - Add a suffix starts with `@`, followed by some renderer name, to your yaml field name as rendering suffix (e.g. `foo@<renderer-name>: bar`)
 - Type hinting: keep you data as what it supposed to be
   - Add a type hint suffix `?<some-type>` to your renderer (e.g. `foo@<renderer-name>?[]obj: bar` suggests `foo` should be an array of objects using result from `<renderer-name>` generated with input `bar`)
-  - See [list of supported type hints](https://github.com/arhat-dev/rs/blob/v0.4.0/typehint.go#L24)
+  - See [list of supported type hints](https://github.com/arhat-dev/rs/blob/v0.5.1/typehint.go#L209)
 - Data merging and patching made esay: create patching spec in yaml doc
   - Add a patching suffix `!` to your renderer (after the type hint if any), feed it a [patch spec](https://pkg.go.dev/arhat.dev/rs#PatchSpec) object
-  - Built-in `jq` and rfc6902 json-patch support to select partial data from the incoming data.
+  - Built-in `jq` (as `select` field) and rfc6902 json-patch (as `patch[*]`) support to select partial data from the incoming data.
 - Renderer chaining: render you data with a rendering pipeline
   - Concatenate you renderers with pipes (`|`), get your data rendered through the pipeline (e.g. join three renderers `a`, `b`, `c` -> `a|b|c`)
 - Supports arbitraty yaml doc without type definition in your own code.
   - Use [`AnyObject`](https://pkg.go.dev/arhat.dev/rs#AnyObject) as `interface{}`.
   - Use [`AnyObjectMap`](https://pkg.go.dev/arhat.dev/rs#AnyObjectMap) as `map[string]interface{}`.
 - Everything `gopkg.in/yaml.v3` supports are supported.
-  - Anchors, Alias, YAML Merges ...
 - Extended but still vanilla yaml, your yaml doc stays valid for all standard yaml parser.
 
 Sample YAML Doc with all features above
@@ -95,7 +94,7 @@ foo@a!: &foo
 bar@a!: *foo
 ```
 
-__NOTE:__ This module provides no renderer implementation, and the only built-in renderer is a pseudo renderer with empty name that skips rendering (output is what input is) for data patching and type hinting purpose (e.g. `foo@?int!: { ... patch spec ... }`). You have to roll out your own renderers. If you are in a hurry and want some handy renderers, try [arhat.dev/pkg/rshelper.DefaultRenderingManager](https://pkg.go.dev/arhat.dev/pkg/rshelper#DefaultRenderingManager), it will give you `env`, `template` and `file` renderers.
+__NOTE:__ This module provides no renderer implementation, and the only built-in renderer is a pseudo renderer with empty name that skips rendering (output is what input is) for data patching and type hinting purpose (e.g. `foo@?int!: { ... patch spec ... }`). You have to roll out your own renderers. If you are in a hurry and want some handy renderers, try our [arhat.dev/pkg/rshelper.DefaultRenderingManager](https://pkg.go.dev/arhat.dev/pkg/rshelper#DefaultRenderingManager), it will give you `env`, `template` and `file` renderers.
 
 ## Usage
 
