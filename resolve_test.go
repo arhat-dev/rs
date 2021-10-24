@@ -40,3 +40,23 @@ func TestResolve_yaml_unmarshal_panic(t *testing.T) {
 		}()
 	}
 }
+
+func TestResolve_yaml_unmarshal_invalid_but_no_error(t *testing.T) {
+	tests := []struct {
+		dataBytes string
+	}{
+		{`[[]]test`},
+	}
+
+	for _, test := range tests {
+		out := new(yaml.Node)
+		err := yaml.Unmarshal([]byte(test.dataBytes), out)
+		assert.NoError(t, err, "error return works?")
+
+		md, err := yaml.Marshal(out)
+		assert.NoError(t, err)
+		assert.NotEqual(t, test.dataBytes, string(md))
+
+		t.Log(string(md))
+	}
+}
