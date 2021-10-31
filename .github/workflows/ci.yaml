@@ -37,9 +37,14 @@ jobs:
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v2
+      with:
+        # disable shallow-clone
+        fetch-depth: 0
+
     - uses: actions/setup-go@v2
       with:
         go-version: 1.17.x
+
     - uses: arhat-dev/actions-setup-dukkha@master
 
     - name: Install Go
@@ -58,11 +63,11 @@ jobs:
 
     - name: Lint
       if: ${{ matrix.os == 'ubuntu-latest' }}
-      run: |
+      run: |-
         make lint.all
 
     - name: Unit Tests
-      run: |
+      run: |-
         dukkha run golang local test rs
 
     - uses: sonarsource/sonarqube-scan-action@v1.0.0
