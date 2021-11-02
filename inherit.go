@@ -23,21 +23,21 @@ func (f *BaseField) Inherit(other *BaseField) error {
 		return fmt.Errorf("rs.BaseField.Inherit: incoming target not initialized")
 	}
 
-	if len(other.unresolvedFields) != 0 {
-		if f.unresolvedFields == nil {
-			f.unresolvedFields = make(map[string]*unresolvedFieldSpec)
+	if len(other.unresolvedNormalFields) != 0 {
+		if f.unresolvedNormalFields == nil {
+			f.unresolvedNormalFields = make(map[string]*unresolvedFieldSpec)
 		}
 
-		for k, v := range other.unresolvedFields {
-			existingV, ok := f.unresolvedFields[k]
+		for k, v := range other.unresolvedNormalFields {
+			existingV, ok := f.unresolvedNormalFields[k]
 			if !ok {
 				f.addUnresolvedField(
 					k,
 					"", v.renderers,
 					v.fieldName,
-					f._parentValue.FieldByName(v.fieldName),
-					v.isInlineMapKey,
-					v.rawDataList...,
+					f.normalFields[k].fieldValue,
+					v.isInlineMapItem,
+					v.rawData,
 				)
 
 				continue
@@ -45,25 +45,36 @@ func (f *BaseField) Inherit(other *BaseField) error {
 
 			switch {
 			case existingV.fieldName != v.fieldName,
-				existingV.isInlineMapKey != v.isInlineMapKey:
+				existingV.isInlineMapItem != v.isInlineMapItem:
 				return fmt.Errorf(
 					"rs: invalid field not match, want %q, got %q",
 					existingV.fieldName, v.fieldName,
 				)
 			}
 
-			existingV.rawDataList = append(existingV.rawDataList, v.rawDataList...)
+			existingV.rawData = v.rawData
 		}
 	}
 
-	// TODO: values may disappear
-	if len(other.inlineMapCache) != 0 {
-		if f.inlineMapCache == nil {
-			return fmt.Errorf("incompatible type with")
+	// here we do not merge rawData for items sharing the same key since their rendering suffix
+	// may differ from each other
+
+	if len(other.unresolvedInlineMapItems) != 0 {
+		if f.unresolvedInlineMapItems == nil {
+			f.unresolvedInlineMapItems = make(map[string][]*unresolvedFieldSpec)
 		}
 
-		for k, v := range other.inlineMapCache {
-			f.inlineMapCache[k] = v
+		for k, list := range other.unresolvedInlineMapItems {
+			for _, v := range list {
+				f.unresolvedInlineMapItems[k] = append(f.unresolvedInlineMapItems[k], &unresolvedFieldSpec{
+					fieldName:  v.fieldName,
+					fieldValue: f.inlineMap.fieldValue,
+					rawData:    v.rawData,
+					renderers:  v.renderers,
+
+					isInlineMapItem: true,
+				})
+			}
 		}
 	}
 

@@ -78,14 +78,14 @@ func (o *AnyObject) UnmarshalYAML(n *yaml.Node) error {
 	}
 }
 
-func (o *AnyObject) ResolveFields(rc RenderingHandler, depth int, fieldNames ...string) error {
+func (o *AnyObject) ResolveFields(rc RenderingHandler, depth int, names ...string) error {
 	if o.mapData != nil {
-		return o.mapData.ResolveFields(rc, depth, fieldNames...)
+		return o.mapData.ResolveFields(rc, depth, names...)
 	}
 
 	if o.sliceData != nil {
 		for _, v := range o.sliceData {
-			err := v.ResolveFields(rc, depth, fieldNames...)
+			err := v.ResolveFields(rc, depth, names...)
 			if err != nil {
 				return err
 			}

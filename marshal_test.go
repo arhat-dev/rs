@@ -33,9 +33,9 @@ type dataWrapper struct {
 	data interface{}
 }
 
-func (dw *dataWrapper) ResolveFields(rc RenderingHandler, depth int, fieldNames ...string) error {
+func (dw *dataWrapper) ResolveFields(rc RenderingHandler, depth int, names ...string) error {
 	bf := reflect.ValueOf(dw.data).Elem().Field(0).Interface().(BaseField)
-	return (*BaseField).ResolveFields(&bf, rc, depth, fieldNames...)
+	return (*BaseField).ResolveFields(&bf, rc, depth, names...)
 }
 
 func (dw *dataWrapper) UnmarshalYAML(n *yaml.Node) error {

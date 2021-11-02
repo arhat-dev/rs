@@ -20,20 +20,17 @@ type BaseField struct {
 	_parentType  reflect.Type
 	_parentValue reflect.Value
 
-	// key: yamlKey
-	unresolvedFields map[string]*unresolvedFieldSpec
-
 	_opts *Options
 
 	// normalFields are those without `rs:"other"` field tag
 	// key: first value of the specified field tag namespace
 	// 		or lower case version of the exported field name (go-yaml's default behavior)
 	normalFields map[string]*fieldRef
+	inlineMap    *fieldRef
 
-	inlineMap *fieldRef
-
-	// yamlKey -> map value
-	inlineMapCache map[string]reflect.Value
+	// key: yamlKey
+	unresolvedNormalFields   map[string]*unresolvedFieldSpec
+	unresolvedInlineMapItems map[string][]*unresolvedFieldSpec
 }
 
 func (f *BaseField) initialized() bool {
@@ -281,7 +278,7 @@ type fieldRef struct {
 
 	// this field is only set to true for fields with
 	// `rs:"other"` struct field tag
-	isCatchOther bool
+	isInlineMapItem bool
 }
 
 // addField adds one field identified by its yamlKey
@@ -300,13 +297,12 @@ func (f *BaseField) addField(
 			))
 		}
 
-		f.inlineMapCache = make(map[string]reflect.Value)
 		f.inlineMap = &fieldRef{
 			fieldName:  fieldName,
 			fieldValue: fieldValue,
 			base:       base,
 
-			isCatchOther: true,
+			isInlineMapItem: true,
 		}
 
 		return true
@@ -328,8 +324,8 @@ func (f *BaseField) addField(
 		fieldValue: fieldValue,
 		base:       base,
 
-		omitempty:    ts.omitempty,
-		isCatchOther: false,
+		omitempty:       ts.omitempty,
+		isInlineMapItem: false,
 	}
 
 	return true
@@ -340,12 +336,14 @@ func (f *BaseField) getField(yamlKey string) *fieldRef {
 }
 
 type unresolvedFieldSpec struct {
-	fieldName   string
-	fieldValue  reflect.Value
-	rawDataList []*yaml.Node
-	renderers   []*rendererSpec
+	// fieldName is struct field name when isInlineMapItem = false
+	// otherwise it's inline map item key
+	fieldName  string
+	fieldValue reflect.Value
+	rawData    *yaml.Node
+	renderers  []*rendererSpec
 
-	isInlineMapKey bool
+	isInlineMapItem bool
 }
 
 func (f *BaseField) addUnresolvedField(
@@ -357,40 +355,59 @@ func (f *BaseField) addUnresolvedField(
 	// value part
 	fieldName string,
 	fieldValue reflect.Value,
-	isInlineMapKey bool,
-	rawData ...*yaml.Node,
+	isInlineMapItem bool,
+	rawData *yaml.Node,
 ) {
-	if f.unresolvedFields == nil {
-		f.unresolvedFields = make(map[string]*unresolvedFieldSpec)
-	}
-
-	if isInlineMapKey {
-		valType := f.inlineMap.fieldValue.Type().Elem()
-		f.inlineMapCache[yamlKey] = reflect.New(valType)
-	}
-
-	if old, exists := f.unresolvedFields[yamlKey]; exists {
-		// TODO: no idea how can this happen, the key suggests this can only
-		// 	     happen when there are duplicate yaml keys, which is invalid yaml
-		//       go-yaml should errored before we add this
-		// 		 so this is considered as unreachable code
-
-		// unreachable
-		old.rawDataList = append(old.rawDataList, rawData...)
-		return
-	}
-
 	if resolvedSuffix == nil {
 		resolvedSuffix = parseRenderingSuffix(suffix)
 	}
 
-	f.unresolvedFields[yamlKey] = &unresolvedFieldSpec{
-		fieldName:   fieldName,
-		fieldValue:  fieldValue,
-		rawDataList: rawData,
-		renderers:   resolvedSuffix,
+	if !isInlineMapItem {
+		f.addUnresolvedNormalField(yamlKey, resolvedSuffix, fieldName, fieldValue, rawData)
+		return
+	}
 
-		isInlineMapKey: isInlineMapKey,
+	if f.unresolvedInlineMapItems == nil {
+		f.unresolvedInlineMapItems = make(map[string][]*unresolvedFieldSpec)
+	}
+
+	f.unresolvedInlineMapItems[yamlKey] = append(f.unresolvedInlineMapItems[yamlKey], &unresolvedFieldSpec{
+		fieldName:  yamlKey,
+		fieldValue: f.inlineMap.fieldValue,
+		rawData:    rawData,
+		renderers:  resolvedSuffix,
+
+		isInlineMapItem: true,
+	})
+}
+
+func (f *BaseField) addUnresolvedNormalField(
+	// key part
+	yamlKey string,
+	renderers []*rendererSpec,
+
+	// value part
+	fieldName string,
+	fieldValue reflect.Value,
+	rawData *yaml.Node,
+) {
+	if f.unresolvedNormalFields == nil {
+		f.unresolvedNormalFields = make(map[string]*unresolvedFieldSpec)
+	}
+
+	// it can have multiple values only when it's an inline map item
+	if old, exists := f.unresolvedNormalFields[yamlKey]; exists {
+		old.rawData = rawData
+		return
+	}
+
+	f.unresolvedNormalFields[yamlKey] = &unresolvedFieldSpec{
+		fieldName:  fieldName,
+		fieldValue: fieldValue,
+		rawData:    rawData,
+		renderers:  renderers,
+
+		isInlineMapItem: false,
 	}
 }
 

@@ -141,7 +141,7 @@ func TestBaseField_UnmarshalYAML_NoRS(t *testing.T) {
 			baseField := reflect.ValueOf(test.data).Elem().Field(0)
 
 			// should have no unresolved value
-			assert.Len(t, baseField.Interface().(BaseField).unresolvedFields, 0)
+			assert.Len(t, baseField.Interface().(BaseField).unresolvedNormalFields, 0)
 
 			actualData := reflect.ValueOf(test.data).Elem().Field(1).Interface()
 
@@ -165,6 +165,11 @@ func TestBaseField_UnmarshalYAML(t *testing.T) {
 		Array     [5]interface{}    `yaml:"array"`
 	}
 
+	type InlineDelegated struct {
+		StringMap map[string]string `yaml:"delegated_string_map"`
+		Array     [5]interface{}    `yaml:"delegated_array"`
+	}
+
 	type Foo struct {
 		BaseField
 
@@ -175,6 +180,8 @@ func TestBaseField_UnmarshalYAML(t *testing.T) {
 		Other map[string]string `yaml:",inline" rs:"other"`
 
 		InlineWithBaseField Inline `yaml:",inline"`
+
+		InlineWithoutBaseField InlineDelegated `yaml:",inline"`
 	}
 
 	tests := []struct {
@@ -193,8 +200,7 @@ func TestBaseField_UnmarshalYAML(t *testing.T) {
 			expectedResolved: &Foo{Str: "bar"},
 			expectedUnmarshaled: &Foo{
 				BaseField: BaseField{
-					unresolvedFields: nil,
-					inlineMapCache:   map[string]reflect.Value{},
+					unresolvedNormalFields: nil,
 				},
 				Str: "bar",
 			},
@@ -206,8 +212,7 @@ func TestBaseField_UnmarshalYAML(t *testing.T) {
 			expectedResolved: &Foo{},
 			expectedUnmarshaled: &Foo{
 				BaseField: BaseField{
-					unresolvedFields: nil,
-					inlineMapCache:   map[string]reflect.Value{},
+					unresolvedNormalFields: nil,
 				},
 				Str: "",
 			},
@@ -221,8 +226,7 @@ bool_ptr: null
 			expectedResolved: &Foo{},
 			expectedUnmarshaled: &Foo{
 				BaseField: BaseField{
-					unresolvedFields: nil,
-					inlineMapCache:   map[string]reflect.Value{},
+					unresolvedNormalFields: nil,
 				},
 				StrPtr:  nil,
 				BoolPtr: nil,
@@ -235,13 +239,12 @@ bool_ptr: null
 			expectedResolved: &Foo{Str: "bar-test"},
 			expectedUnmarshaled: &Foo{
 				BaseField: BaseField{
-					inlineMapCache: map[string]reflect.Value{},
-					unresolvedFields: map[string]*unresolvedFieldSpec{
+					unresolvedNormalFields: map[string]*unresolvedFieldSpec{
 						"str": {
-							fieldName:   "Str",
-							fieldValue:  reflect.Value{},
-							rawDataList: []*yaml.Node{fakeScalarNode("bar")},
-							renderers:   []*rendererSpec{{name: "add-suffix-test"}},
+							fieldName:  "Str",
+							fieldValue: reflect.Value{},
+							rawData:    fakeScalarNode("bar"),
+							renderers:  []*rendererSpec{{name: "add-suffix-test"}},
 						},
 					},
 				},
@@ -249,19 +252,43 @@ bool_ptr: null
 			},
 		},
 		{
-			name: "CatchOther Duplicate Yaml key",
-			yaml: `{other@echo: foo, other@echo|echo: bar}`,
+			name: "CatchOther Can Have Duplicate Yaml key",
+			yaml: `{other@echo: foo, other@echo: bar}`,
 
-			expectUnmarshalErr: true,
+			expectedResolved: &Foo{
+				Other: map[string]string{
+					"other": "bar",
+				},
+			},
+			expectedUnmarshaled: &Foo{
+				BaseField: BaseField{
+					unresolvedInlineMapItems: map[string][]*unresolvedFieldSpec{
+						"other": {
+							{
+								fieldName:       "other",
+								fieldValue:      reflect.Value{},
+								rawData:         fakeMap(fakeScalarNode("other"), fakeScalarNode("foo")),
+								renderers:       []*rendererSpec{{name: "echo"}},
+								isInlineMapItem: true,
+							},
+							{
+								fieldName:       "other",
+								fieldValue:      reflect.Value{},
+								rawData:         fakeMap(fakeScalarNode("other"), fakeScalarNode("bar")),
+								renderers:       []*rendererSpec{{name: "echo"}},
+								isInlineMapItem: true,
+							},
+						},
+					},
+				},
+			},
 		},
 		{
 			name: "CatchOther",
 			yaml: `{ other_field_1@echo: foo, other_field_2@add-suffix-test: bar }`,
 
 			expectedResolved: &Foo{
-				BaseField: BaseField{
-					// inlineMapCache: map[string]reflect.Value{},
-				},
+				BaseField: BaseField{},
 				Other: map[string]string{
 					"other_field_1": "foo",
 					"other_field_2": "bar-test",
@@ -273,29 +300,22 @@ bool_ptr: null
 					// 	"other_field_1": {},
 					// 	"other_field_2": {},
 					// },
-					inlineMapCache: map[string]reflect.Value{
-						"other_field_1": {},
-						"other_field_2": {},
-					},
-					unresolvedFields: map[string]*unresolvedFieldSpec{
-						"other_field_1": {
-							fieldName:  "Other",
-							fieldValue: reflect.Value{},
-							rawDataList: []*yaml.Node{
-								fakeMap(fakeScalarNode("other_field_1"), fakeScalarNode("foo")),
-							},
-							renderers:      []*rendererSpec{{name: "echo"}},
-							isInlineMapKey: true,
-						},
-						"other_field_2": {
-							fieldName:  "Other",
-							fieldValue: reflect.Value{},
-							rawDataList: []*yaml.Node{
-								fakeMap(fakeScalarNode("other_field_2"), fakeScalarNode("bar")),
-							},
-							renderers:      []*rendererSpec{{name: "add-suffix-test"}},
-							isInlineMapKey: true,
-						},
+					// unresolvedNormalFields: map[string]*unresolvedFieldSpec{},
+					unresolvedInlineMapItems: map[string][]*unresolvedFieldSpec{
+						"other_field_1": {{
+							fieldName:       "other_field_1",
+							fieldValue:      reflect.Value{},
+							rawData:         fakeMap(fakeScalarNode("other_field_1"), fakeScalarNode("foo")),
+							renderers:       []*rendererSpec{{name: "echo"}},
+							isInlineMapItem: true,
+						}},
+						"other_field_2": {{
+							fieldName:       "other_field_2",
+							fieldValue:      reflect.Value{},
+							rawData:         fakeMap(fakeScalarNode("other_field_2"), fakeScalarNode("bar")),
+							renderers:       []*rendererSpec{{name: "add-suffix-test"}},
+							isInlineMapItem: true,
+						}},
 					},
 				},
 				// `Other` field should NOT be initialized
@@ -304,7 +324,7 @@ bool_ptr: null
 			},
 		},
 		{
-			name: "nested+renderer",
+			name: "Inline",
 			// editorconfig-checker-disable
 			yaml: `---
 
@@ -320,27 +340,21 @@ array@echo|echo|echo: |-
 			// editorconfig-checker-enable
 
 			expectedResolved: &Foo{
-				BaseField: BaseField{
-					// inlineMapCache: map[string]reflect.Value{},
-				},
+				BaseField: BaseField{},
 				InlineWithBaseField: Inline{
 					StringMap: map[string]string{"c": "e"},
 					Array:     [5]interface{}{"1", "2", "3", "4", "5"},
 				},
 			},
 			expectedUnmarshaled: &Foo{
-				BaseField: BaseField{
-					inlineMapCache: map[string]reflect.Value{},
-				},
+				BaseField: BaseField{},
 				InlineWithBaseField: Inline{
 					BaseField: BaseField{
-						unresolvedFields: map[string]*unresolvedFieldSpec{
+						unresolvedNormalFields: map[string]*unresolvedFieldSpec{
 							"string_map": {
 								fieldName:  "StringMap",
 								fieldValue: reflect.Value{},
-								rawDataList: []*yaml.Node{
-									fakeScalarNode("c: e"),
-								},
+								rawData:    fakeScalarNode("c: e"),
 								renderers: []*rendererSpec{
 									{name: "echo"},
 									{name: "echo"},
@@ -349,18 +363,69 @@ array@echo|echo|echo: |-
 							"array": {
 								fieldName:  "Array",
 								fieldValue: reflect.Value{},
-								rawDataList: []*yaml.Node{
-									fakeScalarNode(`- "1"
+								rawData: fakeScalarNode(`- "1"
 - "2"
 - "3"
 - "4"
 - '5'`),
-								},
 								renderers: []*rendererSpec{
 									{name: "echo"},
 									{name: "echo"},
 									{name: "echo"},
 								},
+							},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "Inline Delegated",
+			// editorconfig-checker-disable
+			yaml: `---
+
+delegated_string_map@echo|echo: |-
+  c: e
+delegated_array@echo|echo|echo: |-
+  - "1"
+  - "2"
+  - "3"
+  - "4"
+  - '5'
+`,
+			// editorconfig-checker-enable
+
+			expectedResolved: &Foo{
+				BaseField: BaseField{},
+				InlineWithoutBaseField: InlineDelegated{
+					StringMap: map[string]string{"c": "e"},
+					Array:     [5]interface{}{"1", "2", "3", "4", "5"},
+				},
+			},
+			expectedUnmarshaled: &Foo{
+				BaseField: BaseField{
+					unresolvedNormalFields: map[string]*unresolvedFieldSpec{
+						"delegated_string_map": {
+							fieldName:  "StringMap",
+							fieldValue: reflect.Value{},
+							rawData:    fakeScalarNode("c: e"),
+							renderers: []*rendererSpec{
+								{name: "echo"},
+								{name: "echo"},
+							},
+						},
+						"delegated_array": {
+							fieldName:  "Array",
+							fieldValue: reflect.Value{},
+							rawData: fakeScalarNode(`- "1"
+- "2"
+- "3"
+- "4"
+- '5'`),
+							renderers: []*rendererSpec{
+								{name: "echo"},
+								{name: "echo"},
+								{name: "echo"},
 							},
 						},
 					},
@@ -475,17 +540,15 @@ func cleanupBaseField(t *testing.T, f *BaseField) {
 	f._parentValue = reflect.Value{}
 	f._parentType = nil
 	f.normalFields = nil
-	// f.inlineMapCache = nil
-	for k := range f.inlineMapCache {
-		f.inlineMapCache[k] = reflect.Value{}
-	}
 	f.inlineMap = nil
-	for k := range f.unresolvedFields {
-		f.unresolvedFields[k].fieldValue = reflect.Value{}
-		list := f.unresolvedFields[k].rawDataList
-		for i := range list {
-			// assert.NotNil(t, list[i].originalNode)
-			cleanupYamlNode(list[i])
+	for k := range f.unresolvedNormalFields {
+		f.unresolvedNormalFields[k].fieldValue = reflect.Value{}
+		cleanupYamlNode(f.unresolvedNormalFields[k].rawData)
+	}
+	for _, list := range f.unresolvedInlineMapItems {
+		for _, v := range list {
+			v.fieldValue = reflect.Value{}
+			cleanupYamlNode(v.rawData)
 		}
 	}
 }
@@ -504,21 +567,21 @@ func TestBaseField_UnmarshalYAML_Mixed_CatchOther(t *testing.T) {
 	type Foo struct {
 		BaseField
 
-		Data map[string]string `rs:"other"`
+		Data map[string][]string `rs:"other"`
 	}
 
 	a := Init(&Foo{}, nil).(*Foo)
-	assert.NoError(t, yaml.Unmarshal([]byte(`{ a: a, b@echo: b, c: c }`), a))
-	assert.EqualValues(t, map[string]string{
-		"a": "a",
-		"c": "c",
+	assert.NoError(t, yaml.Unmarshal([]byte(`{ a: [a], b@echo: [b], c: [c], b@echo: [x] }`), a))
+	assert.EqualValues(t, map[string][]string{
+		"a": {"a"},
+		"c": {"c"},
 	}, a.Data)
 
 	assert.NoError(t, a.ResolveFields(&testRenderingHandler{}, -1))
-	assert.EqualValues(t, map[string]string{
-		"a": "a",
-		"b": "b",
-		"c": "c",
+	assert.EqualValues(t, map[string][]string{
+		"a": {"a"},
+		"b": {"b", "x"},
+		"c": {"c"},
 	}, a.Data)
 }
 
@@ -554,8 +617,8 @@ func TestBaseField_UnmarshalYAML_Init(t *testing.T) {
 
 		assert.NoError(t, yaml.Unmarshal([]byte(`foo@echo: { foo: rendered-bar }`), out))
 		assert.Equal(t, "", out.Foo.Foo)
-		assert.Len(t, out.BaseField.unresolvedFields, 1)
-		assert.Len(t, out.Foo.BaseField.unresolvedFields, 0)
+		assert.Len(t, out.BaseField.unresolvedNormalFields, 1)
+		assert.Len(t, out.Foo.BaseField.unresolvedNormalFields, 0)
 		assert.EqualValues(t, 1, out.Foo.BaseField._initialized)
 
 		out.ResolveFields(rh, -1)
@@ -581,8 +644,8 @@ func TestBaseField_UnmarshalYAML_Init(t *testing.T) {
 		assert.NoError(t, yaml.Unmarshal([]byte(`foo@echo: { foo: rendered-bar }`), out))
 		assert.Equal(t, "", out.Foo.Foo)
 		assert.EqualValues(t, 1, out.Foo.BaseField._initialized)
-		assert.Len(t, out.BaseField.unresolvedFields, 0)
-		assert.Len(t, out.Foo.BaseField.unresolvedFields, 1)
+		assert.Len(t, out.BaseField.unresolvedNormalFields, 0)
+		assert.Len(t, out.Foo.BaseField.unresolvedNormalFields, 1)
 	})
 
 	t.Run("struct embedded ", func(t *testing.T) {

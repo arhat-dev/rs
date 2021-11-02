@@ -31,7 +31,7 @@ type PatchSpec struct {
 	// 		  value: https://example.com/bar.yaml
 	// 		  merge: { value: [foo] }
 	//
-	// then the resolve value of foo will be `[bar, foo]`
+	// then the resolved value of foo will be `[bar, foo]`
 	Value AnyObject `yaml:"value"`
 
 	// Merge additional data into Value

@@ -5,7 +5,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"gopkg.in/yaml.v3"
 )
 
 func TestBaseField_Inherit(t *testing.T) {
@@ -22,7 +21,8 @@ func TestBaseField_Inherit(t *testing.T) {
 		a *Foo
 		b *Foo
 
-		unresolvedCount int
+		unresolvedNormalFieldsCount  int
+		unresolvedInlineMapItemCount int
 	}{
 		{
 			name: "Both Empty",
@@ -30,7 +30,7 @@ func TestBaseField_Inherit(t *testing.T) {
 			a: &Foo{},
 			b: &Foo{},
 
-			unresolvedCount: 0,
+			unresolvedNormalFieldsCount: 0,
 		},
 		{
 			name: "Empty Inherit Some",
@@ -45,7 +45,7 @@ func TestBaseField_Inherit(t *testing.T) {
 				return v
 			}(),
 
-			unresolvedCount: 1,
+			unresolvedNormalFieldsCount: 1,
 		},
 		{
 			name: "Some Inherit Some",
@@ -67,7 +67,7 @@ func TestBaseField_Inherit(t *testing.T) {
 				return v
 			}(),
 
-			unresolvedCount: 1,
+			unresolvedNormalFieldsCount: 1,
 		},
 		{
 			name: "Catch Other Empty Inherit Some With Cache",
@@ -83,7 +83,7 @@ func TestBaseField_Inherit(t *testing.T) {
 				return v
 			}(),
 
-			unresolvedCount: 1,
+			unresolvedInlineMapItemCount: 1,
 		},
 		{
 			name: "Catch Other Some Inherit Some No Cache",
@@ -106,7 +106,7 @@ func TestBaseField_Inherit(t *testing.T) {
 				return v
 			}(),
 
-			unresolvedCount: 2,
+			unresolvedInlineMapItemCount: 2,
 		},
 	}
 
@@ -116,66 +116,50 @@ func TestBaseField_Inherit(t *testing.T) {
 			b := Init(test.b, nil).(*Foo)
 
 			expectedUnresolvedFields := make(map[string]*unresolvedFieldSpec)
-			expectedCatchOtherCache := make(map[string]reflect.Value)
-			if test.unresolvedCount > 0 {
-				for k, v := range a.unresolvedFields {
+			if test.unresolvedNormalFieldsCount > 0 {
+				for k, v := range a.unresolvedNormalFields {
 					expectedUnresolvedFields[k] = &unresolvedFieldSpec{
-						fieldName:      v.fieldName,
-						fieldValue:     reflect.Value{},
-						rawDataList:    append([]*yaml.Node{}, v.rawDataList...),
-						renderers:      append([]*rendererSpec{}, v.renderers...),
-						isInlineMapKey: v.isInlineMapKey,
+						fieldName:       v.fieldName,
+						fieldValue:      reflect.Value{},
+						rawData:         v.rawData,
+						renderers:       append([]*rendererSpec{}, v.renderers...),
+						isInlineMapItem: v.isInlineMapItem,
 					}
 				}
 			} else {
 				expectedUnresolvedFields = nil
 			}
 
-			for k, v := range a.inlineMapCache {
-				expectedCatchOtherCache[k] = v
-			}
-
 			assert.NoError(t, a.Inherit(&b.BaseField))
 
 			assert.NotEqualValues(t, a._parentValue, b._parentValue)
-			assert.Len(t, a.unresolvedFields, test.unresolvedCount)
+			assert.Len(t, a.unresolvedNormalFields, test.unresolvedNormalFieldsCount)
+			assert.Len(t, a.unresolvedInlineMapItems, test.unresolvedInlineMapItemCount)
 
-			for k, v := range a.unresolvedFields {
+			for k, v := range a.unresolvedNormalFields {
 				// value destionation should be redirected to a
 				assert.Equal(t, a._parentValue.FieldByName("Data"), v.fieldValue)
 
 				// reset for assertion
-				a.unresolvedFields[k].fieldValue = reflect.Value{}
+				a.unresolvedNormalFields[k].fieldValue = reflect.Value{}
 			}
 
-			for k, v := range b.unresolvedFields {
+			for k, v := range b.unresolvedNormalFields {
 				// reset for assertion
 				if _, ok := expectedUnresolvedFields[k]; ok {
-					expectedUnresolvedFields[k].rawDataList = append(
-						expectedUnresolvedFields[k].rawDataList,
-						v.rawDataList...,
-					)
+					expectedUnresolvedFields[k].rawData = v.rawData
 				} else {
 					expectedUnresolvedFields[k] = &unresolvedFieldSpec{
-						fieldName:      v.fieldName,
-						fieldValue:     reflect.Value{},
-						rawDataList:    append([]*yaml.Node{}, v.rawDataList...),
-						renderers:      append([]*rendererSpec{}, v.renderers...),
-						isInlineMapKey: v.isInlineMapKey,
+						fieldName:       v.fieldName,
+						fieldValue:      reflect.Value{},
+						rawData:         v.rawData,
+						renderers:       append([]*rendererSpec{}, v.renderers...),
+						isInlineMapItem: v.isInlineMapItem,
 					}
 				}
 			}
 
-			for k, v := range b.inlineMapCache {
-				expectedCatchOtherCache[k] = v
-			}
-
-			// if len(expectedCatchOtherCache) == 0 {
-			// 	expectedCatchOtherCache = nil
-			// }
-
-			assert.EqualValues(t, expectedUnresolvedFields, a.unresolvedFields)
-			assert.EqualValues(t, expectedCatchOtherCache, a.inlineMapCache)
+			assert.EqualValues(t, expectedUnresolvedFields, a.unresolvedNormalFields)
 		})
 	}
 }
