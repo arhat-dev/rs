@@ -24,11 +24,11 @@ func (f *BaseField) Inherit(b *BaseField) error {
 		existingV, ok := f.unresolvedFields[k]
 		if !ok {
 			f.unresolvedFields[k] = &unresolvedFieldSpec{
-				fieldName:         v.fieldName,
-				fieldValue:        f._parentValue.FieldByName(v.fieldName),
-				isCatchOtherField: v.isCatchOtherField,
-				rawDataList:       v.rawDataList,
-				renderers:         v.renderers,
+				fieldName:                v.fieldName,
+				fieldValue:               f._parentValue.FieldByName(v.fieldName),
+				isUnresolvedInlineMapKey: v.isUnresolvedInlineMapKey,
+				rawDataList:              v.rawDataList,
+				renderers:                v.renderers,
 			}
 
 			continue
@@ -36,7 +36,7 @@ func (f *BaseField) Inherit(b *BaseField) error {
 
 		switch {
 		case existingV.fieldName != v.fieldName,
-			existingV.isCatchOtherField != v.isCatchOtherField:
+			existingV.isUnresolvedInlineMapKey != v.isUnresolvedInlineMapKey:
 			return fmt.Errorf(
 				"rs: invalid field not match, want %q, got %q",
 				existingV.fieldName, v.fieldName,
@@ -46,23 +46,14 @@ func (f *BaseField) Inherit(b *BaseField) error {
 		existingV.rawDataList = append(existingV.rawDataList, v.rawDataList...)
 	}
 
-	if len(b.catchOtherCache) != 0 {
-		if f.catchOtherCache == nil {
-			f.catchOtherCache = make(map[string]reflect.Value)
+	// TODO: values may disappear
+	if len(b.inlineMapCache) != 0 {
+		if f.inlineMapCache == nil {
+			f.inlineMapCache = make(map[string]reflect.Value)
 		}
 
-		for k, v := range b.catchOtherCache {
-			f.catchOtherCache[k] = v
-		}
-	}
-
-	if len(b.catchOtherFields) != 0 {
-		if f.catchOtherFields == nil {
-			f.catchOtherFields = make(map[string]struct{})
-		}
-
-		for k, v := range b.catchOtherFields {
-			f.catchOtherFields[k] = v
+		for k, v := range b.inlineMapCache {
+			f.inlineMapCache[k] = v
 		}
 	}
 

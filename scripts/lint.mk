@@ -27,7 +27,8 @@ lint.shell:
 		| xargs -I'{}' shellcheck -S warning -e SC1090 -e SC1091 {} ;"
 
 lint.go:
-	${RUN_LINTER} ghcr.io/arhat-dev/golangci-lint:1.41 \
+	${RUN_LINTER} -v "$(shell go env GOPATH)/pkg/mod:/go/pkg/mod" \
+		ghcr.io/arhat-dev/golangci-lint:1.41 \
 		golangci-lint run --fix
 
 lint.yaml:

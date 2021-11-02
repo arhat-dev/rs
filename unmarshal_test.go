@@ -192,8 +192,11 @@ func TestBaseField_UnmarshalYAML(t *testing.T) {
 
 			expectedResolved: &Foo{Str: "bar"},
 			expectedUnmarshaled: &Foo{
-				BaseField: BaseField{unresolvedFields: nil},
-				Str:       "bar",
+				BaseField: BaseField{
+					unresolvedFields: nil,
+					inlineMapCache:   map[string]reflect.Value{},
+				},
+				Str: "bar",
 			},
 		},
 		{
@@ -202,8 +205,11 @@ func TestBaseField_UnmarshalYAML(t *testing.T) {
 
 			expectedResolved: &Foo{},
 			expectedUnmarshaled: &Foo{
-				BaseField: BaseField{unresolvedFields: nil},
-				Str:       "",
+				BaseField: BaseField{
+					unresolvedFields: nil,
+					inlineMapCache:   map[string]reflect.Value{},
+				},
+				Str: "",
 			},
 		},
 		{
@@ -214,9 +220,12 @@ bool_ptr: null
 `,
 			expectedResolved: &Foo{},
 			expectedUnmarshaled: &Foo{
-				BaseField: BaseField{unresolvedFields: nil},
-				StrPtr:    nil,
-				BoolPtr:   nil,
+				BaseField: BaseField{
+					unresolvedFields: nil,
+					inlineMapCache:   map[string]reflect.Value{},
+				},
+				StrPtr:  nil,
+				BoolPtr: nil,
 			},
 		},
 		{
@@ -226,6 +235,7 @@ bool_ptr: null
 			expectedResolved: &Foo{Str: "bar-test"},
 			expectedUnmarshaled: &Foo{
 				BaseField: BaseField{
+					inlineMapCache: map[string]reflect.Value{},
 					unresolvedFields: map[string]*unresolvedFieldSpec{
 						"str": {
 							fieldName:   "Str",
@@ -249,6 +259,9 @@ bool_ptr: null
 			yaml: `{ other_field_1@echo: foo, other_field_2@add-suffix-test: bar }`,
 
 			expectedResolved: &Foo{
+				BaseField: BaseField{
+					// inlineMapCache: map[string]reflect.Value{},
+				},
 				Other: map[string]string{
 					"other_field_1": "foo",
 					"other_field_2": "bar-test",
@@ -256,11 +269,14 @@ bool_ptr: null
 			},
 			expectedUnmarshaled: &Foo{
 				BaseField: BaseField{
-					catchOtherFields: map[string]struct{}{
+					// unresolvedInlineMapKeys: map[string]struct{}{
+					// 	"other_field_1": {},
+					// 	"other_field_2": {},
+					// },
+					inlineMapCache: map[string]reflect.Value{
 						"other_field_1": {},
 						"other_field_2": {},
 					},
-					catchOtherCache: nil,
 					unresolvedFields: map[string]*unresolvedFieldSpec{
 						"other_field_1": {
 							fieldName:  "Other",
@@ -268,8 +284,8 @@ bool_ptr: null
 							rawDataList: []*yaml.Node{
 								fakeMap(fakeScalarNode("other_field_1"), fakeScalarNode("foo")),
 							},
-							renderers:         []*rendererSpec{{name: "echo"}},
-							isCatchOtherField: true,
+							renderers:                []*rendererSpec{{name: "echo"}},
+							isUnresolvedInlineMapKey: true,
 						},
 						"other_field_2": {
 							fieldName:  "Other",
@@ -277,8 +293,8 @@ bool_ptr: null
 							rawDataList: []*yaml.Node{
 								fakeMap(fakeScalarNode("other_field_2"), fakeScalarNode("bar")),
 							},
-							renderers:         []*rendererSpec{{name: "add-suffix-test"}},
-							isCatchOtherField: true,
+							renderers:                []*rendererSpec{{name: "add-suffix-test"}},
+							isUnresolvedInlineMapKey: true,
 						},
 					},
 				},
@@ -304,12 +320,18 @@ array@echo|echo|echo: |-
 			// editorconfig-checker-enable
 
 			expectedResolved: &Foo{
+				BaseField: BaseField{
+					// inlineMapCache: map[string]reflect.Value{},
+				},
 				InlineWithBaseField: Inline{
 					StringMap: map[string]string{"c": "e"},
 					Array:     [5]interface{}{"1", "2", "3", "4", "5"},
 				},
 			},
 			expectedUnmarshaled: &Foo{
+				BaseField: BaseField{
+					inlineMapCache: map[string]reflect.Value{},
+				},
 				InlineWithBaseField: Inline{
 					BaseField: BaseField{
 						unresolvedFields: map[string]*unresolvedFieldSpec{
@@ -370,10 +392,10 @@ array@echo|echo|echo: |-
 				// expected := Init(test.expectedUnmarshaled, nil).(*Foo)
 				// expected._parentValue = reflect.Value{}
 				// expected.fields = nil
-				// expected.catchOtherCache = nil
+				// expected.inlineMapCache = nil
 				// expected.InlineWithBaseField._parentValue = reflect.Value{}
 				// expected.InlineWithBaseField.fields = nil
-				// expected.InlineWithBaseField.catchOtherCache = nil
+				// expected.InlineWithBaseField.inlineMapCache = nil
 
 				assert.EqualValues(t, test.expectedUnmarshaled, out)
 			})
@@ -453,8 +475,11 @@ func cleanupBaseField(t *testing.T, f *BaseField) {
 	f._parentValue = reflect.Value{}
 	f._parentType = nil
 	f.normalFields = nil
-	f.catchOtherCache = nil
-	f.catchOtherField = nil
+	// f.inlineMapCache = nil
+	for k := range f.inlineMapCache {
+		f.inlineMapCache[k] = reflect.Value{}
+	}
+	f.inlineMap = nil
 	for k := range f.unresolvedFields {
 		f.unresolvedFields[k].fieldValue = reflect.Value{}
 		list := f.unresolvedFields[k].rawDataList

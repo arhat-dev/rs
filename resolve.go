@@ -77,8 +77,8 @@ func (f *BaseField) resolveSingleField(
 
 	for k, v := range f.unresolvedFields {
 		if v.fieldName == fieldName {
-			err := f.handleUnResolvedField(
-				rc, depth, k, v, keepOld,
+			err := handleUnResolvedField(
+				rc, depth, k, v, keepOld, f._opts, f.inlineMapCache,
 			)
 			if err != nil {
 				return err
@@ -88,10 +88,10 @@ func (f *BaseField) resolveSingleField(
 		}
 	}
 
-	return f.handleResolvedField(rc, depth, targetField)
+	return handleResolvedField(rc, depth, targetField)
 }
 
-func (f *BaseField) handleResolvedField(
+func handleResolvedField(
 	rc RenderingHandler,
 	depth int,
 	field reflect.Value,
@@ -108,7 +108,7 @@ func (f *BaseField) handleResolvedField(
 
 		iter := field.MapRange()
 		for iter.Next() {
-			err := f.handleResolvedField(rc, depth-1, iter.Value())
+			err := handleResolvedField(rc, depth-1, iter.Value())
 			if err != nil {
 				return err
 			}
@@ -123,7 +123,7 @@ func (f *BaseField) handleResolvedField(
 
 		for i := 0; i < field.Len(); i++ {
 			tt := field.Index(i)
-			err := f.handleResolvedField(rc, depth-1, tt)
+			err := handleResolvedField(rc, depth-1, tt)
 			if err != nil {
 				return err
 			}
@@ -180,18 +180,20 @@ func tryResolve(rc RenderingHandler, depth int, targetField reflect.Value) error
 	return nil
 }
 
-func (f *BaseField) handleUnResolvedField(
+func handleUnResolvedField(
 	rc RenderingHandler,
 	depth int,
 	yamlKey string,
 	v *unresolvedFieldSpec,
 	keepOld bool,
+	opts *Options,
+	inlineMapCache map[string]reflect.Value,
 ) error {
 	target := v.fieldValue
 
 	for i, rawData := range v.rawDataList {
 		toResolve := rawData
-		if v.isCatchOtherField {
+		if v.isUnresolvedInlineMapKey {
 			// unwrap map data for resolving
 			toResolve = rawData.Content[1]
 		}
@@ -204,7 +206,7 @@ func (f *BaseField) handleUnResolvedField(
 			)
 
 			if renderer.patchSpec {
-				patchSpec, patchSrc, err = f.resolvePatchSpec(rc, toResolve)
+				patchSpec, patchSrc, err = resolvePatchSpec(rc, toResolve, opts)
 				if err != nil {
 					return fmt.Errorf(
 						"failed to resolve patch spec for renderer %q: %w",
@@ -331,13 +333,13 @@ func (f *BaseField) handleUnResolvedField(
 		}
 
 		resolved := toResolve
-		if v.isCatchOtherField {
+		if v.isUnresolvedInlineMapKey {
 			// wrap back for catch other filed
 			resolved = fakeMap(rawData.Content[0], resolved)
 		}
 
-		actualKeepOld := keepOld || v.isCatchOtherField || i != 0
-		err := f.unmarshal(yamlKey, resolved, target, actualKeepOld)
+		actualKeepOld := keepOld || v.isUnresolvedInlineMapKey || i != 0
+		err := unmarshal(yamlKey, resolved, target, actualKeepOld, opts, inlineMapCache)
 		if err != nil {
 			return fmt.Errorf(
 				"failed to unmarshal resolved value of %q to field %q: %w",
@@ -434,16 +436,16 @@ func applyHint(hint TypeHint, in *yaml.Node) (*yaml.Node, error) {
 }
 
 // resolve user provided data as patch spec
-func (f *BaseField) resolvePatchSpec(
+func resolvePatchSpec(
 	rc RenderingHandler,
 	toResolve *yaml.Node,
+	opts *Options,
 ) (
 	patchSpec *PatchSpec,
 	value interface{},
 	err error,
 ) {
-
-	patchSpec = Init(&PatchSpec{}, f._opts).(*PatchSpec)
+	patchSpec = Init(&PatchSpec{}, opts).(*PatchSpec)
 	err = toResolve.Decode(patchSpec)
 	if err != nil {
 		return nil, nil, fmt.Errorf(
@@ -462,13 +464,4 @@ func (f *BaseField) resolvePatchSpec(
 
 	value = patchSpec.Value.NormalizedValue()
 	return patchSpec, value, nil
-}
-
-func (f *BaseField) isCatchOtherField(yamlKey string) bool {
-	if f.catchOtherFields == nil {
-		return false
-	}
-
-	_, ok := f.catchOtherFields[yamlKey]
-	return ok
 }
