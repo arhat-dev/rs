@@ -284,8 +284,8 @@ bool_ptr: null
 							rawDataList: []*yaml.Node{
 								fakeMap(fakeScalarNode("other_field_1"), fakeScalarNode("foo")),
 							},
-							renderers:                []*rendererSpec{{name: "echo"}},
-							isUnresolvedInlineMapKey: true,
+							renderers:      []*rendererSpec{{name: "echo"}},
+							isInlineMapKey: true,
 						},
 						"other_field_2": {
 							fieldName:  "Other",
@@ -293,8 +293,8 @@ bool_ptr: null
 							rawDataList: []*yaml.Node{
 								fakeMap(fakeScalarNode("other_field_2"), fakeScalarNode("bar")),
 							},
-							renderers:                []*rendererSpec{{name: "add-suffix-test"}},
-							isUnresolvedInlineMapKey: true,
+							renderers:      []*rendererSpec{{name: "add-suffix-test"}},
+							isInlineMapKey: true,
 						},
 					},
 				},

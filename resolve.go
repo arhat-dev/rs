@@ -193,7 +193,7 @@ func handleUnResolvedField(
 
 	for i, rawData := range v.rawDataList {
 		toResolve := rawData
-		if v.isUnresolvedInlineMapKey {
+		if v.isInlineMapKey {
 			// unwrap map data for resolving
 			toResolve = rawData.Content[1]
 		}
@@ -333,12 +333,12 @@ func handleUnResolvedField(
 		}
 
 		resolved := toResolve
-		if v.isUnresolvedInlineMapKey {
+		if v.isInlineMapKey {
 			// wrap back for catch other filed
 			resolved = fakeMap(rawData.Content[0], resolved)
 		}
 
-		actualKeepOld := keepOld || v.isUnresolvedInlineMapKey || i != 0
+		actualKeepOld := keepOld || v.isInlineMapKey || i != 0
 		err := unmarshal(yamlKey, resolved, target, actualKeepOld, opts, inlineMapCache)
 		if err != nil {
 			return fmt.Errorf(

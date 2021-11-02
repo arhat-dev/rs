@@ -2,7 +2,6 @@ package rs
 
 import (
 	"fmt"
-	"reflect"
 )
 
 // Inherit unresolved fields from another BaseField
@@ -11,48 +10,59 @@ import (
 //
 // after a successful function call, f wiil be able to resolve its struct fields
 // with unresolved values from b and its own
-func (f *BaseField) Inherit(b *BaseField) error {
-	if len(b.unresolvedFields) == 0 {
+func (f *BaseField) Inherit(other *BaseField) error {
+	if other == nil {
 		return nil
 	}
 
-	if f.unresolvedFields == nil {
-		f.unresolvedFields = make(map[string]*unresolvedFieldSpec)
+	if !f.initialized() {
+		return fmt.Errorf("rs.BaseField.Inherit: self not initialized")
 	}
 
-	for k, v := range b.unresolvedFields {
-		existingV, ok := f.unresolvedFields[k]
-		if !ok {
-			f.unresolvedFields[k] = &unresolvedFieldSpec{
-				fieldName:                v.fieldName,
-				fieldValue:               f._parentValue.FieldByName(v.fieldName),
-				isUnresolvedInlineMapKey: v.isUnresolvedInlineMapKey,
-				rawDataList:              v.rawDataList,
-				renderers:                v.renderers,
+	if !other.initialized() {
+		return fmt.Errorf("rs.BaseField.Inherit: incoming target not initialized")
+	}
+
+	if len(other.unresolvedFields) != 0 {
+		if f.unresolvedFields == nil {
+			f.unresolvedFields = make(map[string]*unresolvedFieldSpec)
+		}
+
+		for k, v := range other.unresolvedFields {
+			existingV, ok := f.unresolvedFields[k]
+			if !ok {
+				f.addUnresolvedField(
+					k,
+					"", v.renderers,
+					v.fieldName,
+					f._parentValue.FieldByName(v.fieldName),
+					v.isInlineMapKey,
+					v.rawDataList...,
+				)
+
+				continue
 			}
 
-			continue
-		}
+			switch {
+			case existingV.fieldName != v.fieldName,
+				existingV.isInlineMapKey != v.isInlineMapKey:
+				return fmt.Errorf(
+					"rs: invalid field not match, want %q, got %q",
+					existingV.fieldName, v.fieldName,
+				)
+			}
 
-		switch {
-		case existingV.fieldName != v.fieldName,
-			existingV.isUnresolvedInlineMapKey != v.isUnresolvedInlineMapKey:
-			return fmt.Errorf(
-				"rs: invalid field not match, want %q, got %q",
-				existingV.fieldName, v.fieldName,
-			)
+			existingV.rawDataList = append(existingV.rawDataList, v.rawDataList...)
 		}
-
-		existingV.rawDataList = append(existingV.rawDataList, v.rawDataList...)
 	}
 
 	// TODO: values may disappear
-	if len(b.inlineMapCache) != 0 {
+	if len(other.inlineMapCache) != 0 {
 		if f.inlineMapCache == nil {
-			f.inlineMapCache = make(map[string]reflect.Value)
+			return fmt.Errorf("incompatible type with")
 		}
 
-		for k, v := range b.inlineMapCache {
+		for k, v := range other.inlineMapCache {
 			f.inlineMapCache[k] = v
 		}
 	}

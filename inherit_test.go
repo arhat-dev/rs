@@ -38,7 +38,7 @@ func TestBaseField_Inherit(t *testing.T) {
 			a: &Foo{},
 			b: func() *Foo {
 				v := Init(&Foo{}, nil).(*Foo)
-				v.addUnresolvedField("data", "test", "Data",
+				v.addUnresolvedField("data", "test", nil, "Data",
 					v._parentValue.FieldByName("Data"), false,
 					fakeScalarNode("value-b"),
 				)
@@ -52,7 +52,7 @@ func TestBaseField_Inherit(t *testing.T) {
 
 			a: func() *Foo {
 				v := Init(&Foo{}, nil).(*Foo)
-				v.addUnresolvedField("data", "test", "Data",
+				v.addUnresolvedField("data", "test", nil, "Data",
 					v._parentValue.FieldByName("Data"), false,
 					fakeScalarNode("value-a"),
 				)
@@ -60,7 +60,7 @@ func TestBaseField_Inherit(t *testing.T) {
 			}(),
 			b: func() *Foo {
 				v := Init(&Foo{}, nil).(*Foo)
-				v.addUnresolvedField("data", "test", "Data",
+				v.addUnresolvedField("data", "test", nil, "Data",
 					v._parentValue.FieldByName("Data"), false,
 					fakeScalarNode("value-b"),
 				)
@@ -75,13 +75,10 @@ func TestBaseField_Inherit(t *testing.T) {
 			a: &Foo{},
 			b: func() *Foo {
 				v := Init(&Foo{}, nil).(*Foo)
-				v.addUnresolvedField("b", "test", "Data",
+				v.addUnresolvedField("b", "test", nil, "Data",
 					v._parentValue.FieldByName("Data"), true,
 					fakeMap(fakeScalarNode("data"), fakeScalarNode("test-data")),
 				)
-				v.inlineMapCache = map[string]reflect.Value{
-					"a": reflect.ValueOf("cache-value"),
-				}
 
 				return v
 			}(),
@@ -93,7 +90,7 @@ func TestBaseField_Inherit(t *testing.T) {
 
 			a: func() *Foo {
 				v := Init(&Foo{}, nil).(*Foo)
-				v.addUnresolvedField("a", "test", "Data",
+				v.addUnresolvedField("a", "test", nil, "Data",
 					v._parentValue.FieldByName("Data"), true,
 					fakeMap(fakeScalarNode("a"), fakeScalarNode("test-data")),
 				)
@@ -101,7 +98,7 @@ func TestBaseField_Inherit(t *testing.T) {
 			}(),
 			b: func() *Foo {
 				v := Init(&Foo{}, nil).(*Foo)
-				v.addUnresolvedField("b", "test", "Data",
+				v.addUnresolvedField("b", "test", nil, "Data",
 					v._parentValue.FieldByName("Data"), true,
 					fakeMap(fakeScalarNode("b"), fakeScalarNode("test-data")),
 				)
@@ -123,11 +120,11 @@ func TestBaseField_Inherit(t *testing.T) {
 			if test.unresolvedCount > 0 {
 				for k, v := range a.unresolvedFields {
 					expectedUnresolvedFields[k] = &unresolvedFieldSpec{
-						fieldName:                v.fieldName,
-						fieldValue:               reflect.Value{},
-						rawDataList:              append([]*yaml.Node{}, v.rawDataList...),
-						renderers:                append([]*rendererSpec{}, v.renderers...),
-						isUnresolvedInlineMapKey: v.isUnresolvedInlineMapKey,
+						fieldName:      v.fieldName,
+						fieldValue:     reflect.Value{},
+						rawDataList:    append([]*yaml.Node{}, v.rawDataList...),
+						renderers:      append([]*rendererSpec{}, v.renderers...),
+						isInlineMapKey: v.isInlineMapKey,
 					}
 				}
 			} else {
@@ -160,11 +157,11 @@ func TestBaseField_Inherit(t *testing.T) {
 					)
 				} else {
 					expectedUnresolvedFields[k] = &unresolvedFieldSpec{
-						fieldName:                v.fieldName,
-						fieldValue:               reflect.Value{},
-						rawDataList:              append([]*yaml.Node{}, v.rawDataList...),
-						renderers:                append([]*rendererSpec{}, v.renderers...),
-						isUnresolvedInlineMapKey: v.isUnresolvedInlineMapKey,
+						fieldName:      v.fieldName,
+						fieldValue:     reflect.Value{},
+						rawDataList:    append([]*yaml.Node{}, v.rawDataList...),
+						renderers:      append([]*rendererSpec{}, v.renderers...),
+						isInlineMapKey: v.isInlineMapKey,
 					}
 				}
 			}

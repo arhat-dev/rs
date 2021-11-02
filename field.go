@@ -345,30 +345,26 @@ type unresolvedFieldSpec struct {
 	rawDataList []*yaml.Node
 	renderers   []*rendererSpec
 
-	isUnresolvedInlineMapKey bool
+	isInlineMapKey bool
 }
 
 func (f *BaseField) addUnresolvedField(
 	// key part
 	yamlKey string,
 	suffix string,
+	resolvedSuffix []*rendererSpec,
 
 	// value part
 	fieldName string,
 	fieldValue reflect.Value,
-	isUnresolvedInlineMapKey bool,
-	rawData *yaml.Node,
+	isInlineMapKey bool,
+	rawData ...*yaml.Node,
 ) {
 	if f.unresolvedFields == nil {
 		f.unresolvedFields = make(map[string]*unresolvedFieldSpec)
 	}
 
-	if isUnresolvedInlineMapKey {
-		// 		if f.unresolvedInlineMapKeys == nil {
-		// 			f.unresolvedInlineMapKeys = make(map[string]struct{})
-		// 		}
-		//
-		// 		f.unresolvedInlineMapKeys[yamlKey] = struct{}{}
+	if isInlineMapKey {
 		valType := f.inlineMap.fieldValue.Type().Elem()
 		f.inlineMapCache[yamlKey] = reflect.New(valType)
 	}
@@ -380,17 +376,21 @@ func (f *BaseField) addUnresolvedField(
 		// 		 so this is considered as unreachable code
 
 		// unreachable
-		old.rawDataList = append(old.rawDataList, rawData)
+		old.rawDataList = append(old.rawDataList, rawData...)
 		return
+	}
+
+	if resolvedSuffix == nil {
+		resolvedSuffix = parseRenderingSuffix(suffix)
 	}
 
 	f.unresolvedFields[yamlKey] = &unresolvedFieldSpec{
 		fieldName:   fieldName,
 		fieldValue:  fieldValue,
-		rawDataList: []*yaml.Node{rawData},
-		renderers:   parseRenderingSuffix(suffix),
+		rawDataList: rawData,
+		renderers:   resolvedSuffix,
 
-		isUnresolvedInlineMapKey: isUnresolvedInlineMapKey,
+		isInlineMapKey: isInlineMapKey,
 	}
 }
 

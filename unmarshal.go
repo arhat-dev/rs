@@ -127,7 +127,7 @@ func (f *BaseField) UnmarshalYAML(n *yaml.Node) error {
 
 		visited[yamlKey] = struct{}{}
 
-		field.base.addUnresolvedField(yamlKey, suffix,
+		field.base.addUnresolvedField(yamlKey, suffix, nil,
 			field.fieldName, field.fieldValue, field.isCatchOther,
 			v,
 		)
