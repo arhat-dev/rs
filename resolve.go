@@ -316,7 +316,7 @@ func handleUnresolvedField(
 				}
 			}
 
-			tmp, err = patchSpec.ApplyTo(tmp)
+			tmp, err = patchSpec.ApplyTo(rc, tmp)
 			if err != nil {
 				return reflect.Value{}, fmt.Errorf(
 					"failed to apply patches: %w",
@@ -492,6 +492,34 @@ func resolvePatchSpec(
 		)
 	}
 
-	value = patchSpec.Value.NormalizedValue()
-	return patchSpec, value, nil
+	value, err = handleOptionalRenderingSuffixResolving(
+		rc, patchSpec.Value, patchSpec.Resolve,
+	)
+	return patchSpec, value, err
+}
+
+func handleOptionalRenderingSuffixResolving(rc RenderingHandler, n *yaml.Node, resolve *bool) (interface{}, error) {
+	n = prepareYamlNode(n)
+	if n == nil {
+		return nil, nil
+	}
+
+	if resolve == nil || *resolve {
+		any := new(AnyObject)
+		err := n.Decode(any)
+		if err != nil {
+			return nil, err
+		}
+
+		err = any.ResolveFields(rc, -1)
+		return any.NormalizedValue(), err
+	}
+
+	var ret interface{}
+	err := n.Decode(&ret)
+	if err != nil {
+		return nil, err
+	}
+
+	return ret, nil
 }

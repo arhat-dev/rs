@@ -93,13 +93,13 @@ func createMergeValue(t *testing.T, i interface{}) []MergeSource {
 		return nil
 	}
 
-	ret := new(AnyObject)
-	if !assert.NoError(t, yaml.Unmarshal(data, &ret)) {
+	ret := new(yaml.Node)
+	if !assert.NoError(t, yaml.Unmarshal(data, ret)) {
 		t.FailNow()
 		return nil
 	}
 
-	return []MergeSource{{Value: *ret}}
+	return []MergeSource{{Value: ret}}
 }
 
 func createExpectedYamlValue(t *testing.T, i interface{}) string {
@@ -208,7 +208,7 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := test.spec.ApplyTo(test.original)
+			result, err := test.spec.ApplyTo(&testRenderingHandler{}, test.original)
 			if test.expectErr {
 				assert.Error(t, err)
 				return

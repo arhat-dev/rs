@@ -79,6 +79,10 @@ func (o *AnyObject) UnmarshalYAML(n *yaml.Node) error {
 }
 
 func (o *AnyObject) ResolveFields(rc RenderingHandler, depth int, names ...string) error {
+	if o == nil {
+		return nil
+	}
+
 	if o.mapData != nil {
 		return o.mapData.ResolveFields(rc, depth, names...)
 	}
