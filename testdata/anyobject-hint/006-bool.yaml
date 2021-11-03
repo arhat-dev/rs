@@ -1,0 +1,17 @@
+bool-true@: true
+bool-false@: false
+bool-true-from-str@?bool: "true"
+bool-false-from-str@?bool: "false"
+bool-true-from-bool@?bool: true
+bool-false-from-bool@?bool: false
+bool-true-from-quoted-str@?bool: '"true"'
+bool-false-from-quoted-str@?bool: '"false"'
+---
+bool-true: true
+bool-false: false
+bool-true-from-str: true
+bool-false-from-str: false
+bool-true-from-bool: true
+bool-false-from-bool: false
+bool-true-from-quoted-str: true
+bool-false-from-quoted-str: false

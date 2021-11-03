@@ -7,6 +7,8 @@ str-from-map@?str:
 str-from-arr@?str:
 - foo
 - bar
+str-from-bool-true@?str: true
+str-from-bool-false@?str: false
 ---
 str: "str"
 str-from-float: "1.100"
@@ -17,3 +19,5 @@ str-from-map: |-
 str-from-arr: |-
   - foo
   - bar
+str-from-bool-true: "true"
+str-from-bool-false: "false"
