@@ -1,0 +1,14 @@
+slice@!:
+  # resolve: false
+  value: []
+
+  merge:
+  - resolve: false
+    value:
+    - a@echo: foo
+
+  - resolve: false
+    value:
+    - b@echo: foo
+---
+slice: [{a@echo: foo}, {b@echo: foo}]

@@ -1,0 +1,14 @@
+foo@!:
+  value:
+    a: a
+  merge:
+  - value:
+      b: b
+  patch:
+  - op: replace
+    path: /b
+    value: c
+---
+foo:
+  a: a
+  b: c

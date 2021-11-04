@@ -1,0 +1,13 @@
+input:
+  data@: foo
+  inline_map_key_1@: a
+  inline_map_key_2@: a
+
+resolve_depth: -1
+resolve_fields:
+- InlineMap
+---
+unmarshaled: {}
+resolved:
+  inline_map_key_1: a
+  inline_map_key_2: a

@@ -1,13 +1,10 @@
 package rs
 
 import (
-	"bytes"
 	"fmt"
-	"io/fs"
-	"os"
-	"path/filepath"
 	"testing"
 
+	"arhat.dev/pkg/testhelper"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 )
@@ -52,26 +49,12 @@ func (h *testRenderingHandler) RenderYaml(renderer string, data interface{}) (re
 }
 
 func testAnyObjectUnmarshalAndResolveByYamlSpecs(t *testing.T, specDirPath string) {
-	filepath.WalkDir(specDirPath, func(path string, d fs.DirEntry, _ error) error {
-		if d.IsDir() {
-			return nil
-		}
-
-		specYaml, err := os.ReadFile(path)
-		if !assert.NoError(t, err, "failed to read test spec %q", d.Name()) {
-			return err
-		}
-
-		t.Run(d.Name(), func(t *testing.T) {
-			dec := yaml.NewDecoder(bytes.NewReader(specYaml))
-
-			var (
-				testSrc  AnyObject
-				expected interface{}
-			)
-
-			assert.NoError(t, dec.Decode(&testSrc), "invalid test source")
-			assert.NoError(t, dec.Decode(&expected), "invalid expected result")
+	testhelper.TestFixtures(t, specDirPath,
+		func() interface{} { return &AnyObject{} },
+		func() interface{} { var out interface{}; return &out },
+		func(t *testing.T, spec, exp interface{}) {
+			testSrc := spec.(*AnyObject)
+			exp = *exp.(*interface{})
 
 			assert.NoError(t,
 				testSrc.ResolveFields(&testRenderingHandler{}, -1),
@@ -84,9 +67,7 @@ func testAnyObjectUnmarshalAndResolveByYamlSpecs(t *testing.T, specDirPath strin
 			var actual interface{}
 			assert.NoError(t, yaml.Unmarshal(ret, &actual), "failed to unmarshal resolved data")
 
-			assert.EqualValues(t, expected, actual)
-		})
-
-		return nil
-	})
+			assert.EqualValues(t, exp, actual)
+		},
+	)
 }

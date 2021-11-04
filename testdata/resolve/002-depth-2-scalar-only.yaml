@@ -1,0 +1,15 @@
+input:
+  data@: foo
+  l2:
+    data@: foo
+    l3:
+      data@: foo
+
+resolve_depth: 2
+resolve_fields: []
+---
+unmarshaled: {}
+resolved:
+  data: foo
+  l2:
+    data: foo

@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 )
 
 var (
@@ -36,4 +37,53 @@ func TestRenderingHandler_RenderYaml(t *testing.T) {
 
 	f.RenderYaml("test", "rawData")
 	assert.True(t, called)
+}
+
+func TestNormalizeRawData(t *testing.T) {
+	for _, test := range []struct {
+		name     string
+		rawData  interface{}
+		expected interface{}
+	}{
+		{
+			name: "str scalar node",
+			rawData: func() *yaml.Node {
+				n := new(yaml.Node)
+				assert.NoError(t, yaml.Unmarshal([]byte("foo"), n))
+				return prepareYamlNode(n)
+			}(),
+			expected: "foo",
+		},
+		{
+			name: "binary scalar node",
+			rawData: func() *yaml.Node {
+				n := new(yaml.Node)
+				assert.NoError(t, yaml.Unmarshal([]byte("!!binary Zm9v"), n))
+				return prepareYamlNode(n)
+			}(),
+			expected: "foo",
+		},
+		{
+			name: "null node",
+			rawData: func() interface{} {
+				n := new(yaml.Node)
+				assert.NoError(t, yaml.Unmarshal([]byte("null"), n))
+				n = prepareYamlNode(n)
+				assert.NotNil(t, n)
+				return n
+			}(),
+			expected: nil,
+		},
+		{
+			name:     "non node",
+			rawData:  "foo",
+			expected: "foo",
+		},
+	} {
+		t.Run(test.name, func(t *testing.T) {
+			ret, err := NormalizeRawData(test.rawData)
+			assert.NoError(t, err)
+			assert.EqualValues(t, test.expected, ret)
+		})
+	}
 }

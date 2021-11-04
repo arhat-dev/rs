@@ -489,6 +489,125 @@ delegated_array@echo|echo|echo: |-
 	}
 }
 
+// ensure we maintain the same behavior when unmarshal multiple times
+func TestBaseField_UnmarshalYAML_multiple_times(t *testing.T) {
+	// editorconfig-checker-disable
+	const InitialInput = `
+int: 1
+int_ptr: 2
+
+slice: [foo]
+ptr_slice: [foo]
+
+array: [foo, bar]
+ptr_array: [foo, bar]
+
+struct: {foo: foo}
+struct_ptr: {foo: foo}
+
+any_map:
+  foo: bar
+ptr_map:
+  foo: bar
+`
+
+	const SecondInput = `
+int:
+int_ptr:
+
+slice:
+ptr_slice:
+
+array:
+ptr_array:
+
+struct:
+struct_ptr:
+
+any_map:
+  foo:
+
+ptr_map:
+  foo:
+`
+
+	const ThirdInput = `
+int: 3
+int_ptr: 4
+
+slice: []
+ptr_slice: []
+
+array: [a, b]
+ptr_array: [a, b]
+
+struct: {}
+struct_ptr: {}
+
+any_map:
+ptr_map:
+`
+	// editorconfig-checker-enable
+	type TestCase struct {
+		Int    int  `yaml:"int"`
+		IntPtr *int `yaml:"int_ptr"`
+
+		Slice    []string  `yaml:"slice"`
+		PtrSlice []*string `yaml:"ptr_slice"`
+
+		Array    [2]string  `yaml:"array"`
+		PtrArray [2]*string `yaml:"ptr_array"`
+
+		Struct struct {
+			Foo string `yaml:"foo"`
+		} `yaml:"struct"`
+
+		StructPtr *struct {
+			Foo string `yaml:"foo"`
+		} `yaml:"struct_ptr"`
+
+		AnyMap map[string]interface{} `yaml:"any_map"`
+		PtrMap map[string]*string     `yaml:"ptr_map"`
+	}
+
+	var (
+		outRS struct {
+			BaseField
+			TestCase `yaml:",inline"`
+		}
+		outExpected TestCase
+	)
+
+	_ = Init(&outRS, nil)
+
+	assertVisibleValues := func(t *testing.T, expected, actual *TestCase) {
+		assert.EqualValues(t, expected.Int, actual.Int)
+		assert.EqualValues(t, expected.IntPtr, actual.IntPtr)
+
+		assert.EqualValues(t, expected.Slice, actual.Slice)
+		assert.EqualValues(t, expected.PtrSlice, actual.PtrSlice)
+
+		assert.EqualValues(t, expected.Array, actual.Array)
+		assert.EqualValues(t, expected.PtrArray, actual.PtrArray)
+
+		assert.EqualValues(t, expected.Struct, actual.Struct)
+		assert.EqualValues(t, expected.StructPtr, actual.StructPtr)
+
+		assert.EqualValues(t, expected.AnyMap, actual.AnyMap)
+		assert.EqualValues(t, expected.PtrMap, actual.PtrMap)
+	}
+
+	for i, test := range []string{InitialInput, SecondInput, ThirdInput} {
+		t.Run(fmt.Sprint(i), func(t *testing.T) {
+			assert.NoError(t, yaml.Unmarshal([]byte(test), &outRS))
+			assert.NoError(t, yaml.Unmarshal([]byte(test), &outExpected))
+
+			t.Log("expected =", outExpected, "actual =", outRS.TestCase)
+			assertVisibleValues(t, &outExpected, &outRS.TestCase)
+		})
+	}
+}
+
 func fakeScalarNode(i interface{}) *yaml.Node {
 	var (
 		data []byte

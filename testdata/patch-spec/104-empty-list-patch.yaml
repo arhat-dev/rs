@@ -1,0 +1,14 @@
+foo@!:
+  value: []
+  merge:
+  - value:
+    - a
+  patch:
+  - op: add
+    path: /1
+    value: b
+  - op: replace
+    path: /0
+    value: c
+---
+foo: [c, b]

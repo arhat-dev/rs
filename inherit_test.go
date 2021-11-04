@@ -163,3 +163,17 @@ func TestBaseField_Inherit(t *testing.T) {
 		})
 	}
 }
+
+func TestBaseField_Inherit_uninitialized(t *testing.T) {
+	bf := &BaseField{}
+	assert.NoError(t, bf.Inherit(nil))
+	assert.NoError(t, bf.Inherit(bf))
+
+	type Other struct {
+		BaseField
+	}
+
+	other := Init(&Other{}, nil).(*Other)
+	assert.Error(t, bf.Inherit(&other.BaseField))
+	assert.Error(t, other.Inherit(bf))
+}

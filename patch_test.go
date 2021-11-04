@@ -3,6 +3,7 @@ package rs
 import (
 	"testing"
 
+	"arhat.dev/pkg/testhelper"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 )
@@ -222,4 +223,32 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 
 func TestPatchSpec(t *testing.T) {
 	testAnyObjectUnmarshalAndResolveByYamlSpecs(t, "testdata/patch-spec")
+}
+
+func TestPatchSpec_unresolved(t *testing.T) {
+	type TestCase struct {
+		BaseField
+
+		Slice []interface{} `yaml:"slice"`
+	}
+
+	type Expected struct {
+		Slice []interface{} `yaml:"slice"`
+	}
+
+	assertVisibleValues := func(t *testing.T, expected *Expected, actual *TestCase) {
+		assert.EqualValues(t, expected.Slice, actual.Slice)
+	}
+
+	testhelper.TestFixtures(t, "./testdata/patch-spec-unresolved",
+		func() interface{} { return Init(&TestCase{}, nil) },
+		func() interface{} { return &Expected{} },
+		func(t *testing.T, spec, exp interface{}) {
+			in := spec.(*TestCase)
+			expected := exp.(*Expected)
+
+			assert.NoError(t, in.ResolveFields(&testRenderingHandler{}, -1))
+			assertVisibleValues(t, expected, in)
+		},
+	)
 }
