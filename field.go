@@ -357,14 +357,23 @@ func (f *BaseField) addUnresolvedField(
 	fieldValue reflect.Value,
 	isInlineMapItem bool,
 	rawData *yaml.Node,
-) {
+) error {
 	if resolvedSuffix == nil {
 		resolvedSuffix = parseRenderingSuffix(suffix)
 	}
 
+	if f._opts != nil && f._opts.AllowedRenderers != nil {
+		for _, v := range resolvedSuffix {
+			_, ok := f._opts.AllowedRenderers[v.name]
+			if !ok {
+				return fmt.Errorf("renderer %q is not allowed", v.name)
+			}
+		}
+	}
+
 	if !isInlineMapItem {
 		f.addUnresolvedNormalField(yamlKey, resolvedSuffix, fieldName, fieldValue, rawData)
-		return
+		return nil
 	}
 
 	if f.unresolvedInlineMapItems == nil {
@@ -379,6 +388,8 @@ func (f *BaseField) addUnresolvedField(
 
 		isInlineMapItem: true,
 	})
+
+	return nil
 }
 
 func (f *BaseField) addUnresolvedNormalField(

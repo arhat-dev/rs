@@ -377,6 +377,7 @@ func unsetAnyObjectBaseField(obj *AnyObject) {
 		return
 	}
 
+	obj.BaseField = BaseField{}
 	if obj.mapData != nil {
 		obj.mapData.BaseField = BaseField{}
 		for _, v := range obj.mapData.Data {

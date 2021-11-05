@@ -31,7 +31,7 @@ func (f *BaseField) Inherit(other *BaseField) error {
 		for k, v := range other.unresolvedNormalFields {
 			existingV, ok := f.unresolvedNormalFields[k]
 			if !ok {
-				f.addUnresolvedField(
+				err := f.addUnresolvedField(
 					k,
 					"", v.renderers,
 					v.fieldName,
@@ -39,6 +39,10 @@ func (f *BaseField) Inherit(other *BaseField) error {
 					v.isInlineMapItem,
 					v.rawData,
 				)
+
+				if err != nil {
+					return err
+				}
 
 				continue
 			}

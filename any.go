@@ -8,6 +8,8 @@ import (
 
 // AnyObject is a `interface{}` equivalent with rendering suffix support
 type AnyObject struct {
+	BaseField `yaml:"-" json:"-"`
+
 	mapData    *AnyObjectMap
 	sliceData  []*AnyObject
 	scalarData interface{}
@@ -56,10 +58,19 @@ func (o *AnyObject) MarshalJSON() ([]byte, error)      { return json.Marshal(o.v
 func (o *AnyObject) UnmarshalYAML(n *yaml.Node) error {
 	switch n.Kind {
 	case yaml.SequenceNode:
-		return n.Decode(&o.sliceData)
+		o.sliceData = make([]*AnyObject, len(n.Content))
+		for i, vn := range n.Content {
+			o.sliceData[i] = Init(&AnyObject{}, o._opts).(*AnyObject)
+			err := o.sliceData[i].UnmarshalYAML(prepareYamlNode(vn))
+			if err != nil {
+				return err
+			}
+		}
+
+		return nil
 	case yaml.MappingNode:
 		if o.mapData == nil {
-			o.mapData = Init(&AnyObjectMap{}, nil).(*AnyObjectMap)
+			o.mapData = Init(&AnyObjectMap{}, o._opts).(*AnyObjectMap)
 		}
 		return n.Decode(o.mapData)
 	case yaml.ScalarNode:

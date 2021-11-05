@@ -133,11 +133,9 @@ func (f *BaseField) unmarshalRS(yamlKey, suffix string, kv []*yaml.Node) error {
 
 	// field is not nil
 
-	field.base.addUnresolvedField(yamlKey, suffix, nil,
+	return field.base.addUnresolvedField(yamlKey, suffix, nil,
 		field.fieldName, field.fieldValue, field.isInlineMapItem, v,
 	)
-
-	return nil
 }
 
 func unmarshal(

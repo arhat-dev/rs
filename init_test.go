@@ -1,10 +1,12 @@
 package rs
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"gopkg.in/yaml.v3"
 )
 
 func TestInit(t *testing.T) {
@@ -98,6 +100,86 @@ func TestInit(t *testing.T) {
 
 			test.setDirectFoo("newValue")
 			assert.Equal(t, "newValue", test.getBaseFieldParentFoo())
+		})
+	}
+}
+
+func TestOptions_AllowedRenderers(t *testing.T) {
+	tests := []struct {
+		name      string
+		allowList map[string]struct{}
+		input     string
+		expectErr bool
+	}{
+		{
+			name:      "Nil - Permit All",
+			allowList: nil,
+			input:     "foo: bar",
+			expectErr: false,
+		},
+		{
+			name:      "Nil - Permit All",
+			allowList: nil,
+			input:     "foo@test|any: bar",
+			expectErr: false,
+		},
+		{
+			name:      "Empty - Deny All Good",
+			allowList: map[string]struct{}{},
+			input:     "foo: bar",
+			expectErr: false,
+		},
+		{
+			name:      "Empty - Deny All Bad",
+			allowList: map[string]struct{}{},
+			input:     "{foo: {foo: { foo@test|any: bar }}}",
+			expectErr: true,
+		},
+		{
+			name:      "Empty - Deny All Bad",
+			allowList: map[string]struct{}{},
+			input:     "[{ foo@test|any: bar }]",
+			expectErr: true,
+		},
+		{
+			name: "Non Empty - Permit Listed Good",
+			allowList: map[string]struct{}{
+				"test": {},
+				"any":  {},
+			},
+			input:     "foo@test|any: bar",
+			expectErr: false,
+		},
+		{
+			name: "Non Empty - Permit Listed Good",
+			allowList: map[string]struct{}{
+				"": {},
+			},
+			input:     "foo@: bar",
+			expectErr: false,
+		},
+		{
+			name: "Non Empty - Permit Listed Bad",
+			allowList: map[string]struct{}{
+				"test": {},
+			},
+			input:     "foo@test|any: bar",
+			expectErr: true,
+		},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			out := Init(&AnyObject{}, &Options{
+				AllowedRenderers: test.allowList,
+			})
+
+			err := yaml.Unmarshal([]byte(test.input), out)
+			if test.expectErr {
+				assert.Error(t, err, fmt.Sprint(err))
+			} else {
+				assert.NoError(t, err, fmt.Sprint(err))
+			}
 		})
 	}
 }

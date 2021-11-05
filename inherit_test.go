@@ -38,7 +38,7 @@ func TestBaseField_Inherit(t *testing.T) {
 			a: &Foo{},
 			b: func() *Foo {
 				v := Init(&Foo{}, nil).(*Foo)
-				v.addUnresolvedField("data", "test", nil, "Data",
+				_ = v.addUnresolvedField("data", "test", nil, "Data",
 					v._parentValue.FieldByName("Data"), false,
 					fakeScalarNode("value-b"),
 				)
@@ -52,7 +52,7 @@ func TestBaseField_Inherit(t *testing.T) {
 
 			a: func() *Foo {
 				v := Init(&Foo{}, nil).(*Foo)
-				v.addUnresolvedField("data", "test", nil, "Data",
+				_ = v.addUnresolvedField("data", "test", nil, "Data",
 					v._parentValue.FieldByName("Data"), false,
 					fakeScalarNode("value-a"),
 				)
@@ -60,7 +60,7 @@ func TestBaseField_Inherit(t *testing.T) {
 			}(),
 			b: func() *Foo {
 				v := Init(&Foo{}, nil).(*Foo)
-				v.addUnresolvedField("data", "test", nil, "Data",
+				_ = v.addUnresolvedField("data", "test", nil, "Data",
 					v._parentValue.FieldByName("Data"), false,
 					fakeScalarNode("value-b"),
 				)
@@ -75,7 +75,7 @@ func TestBaseField_Inherit(t *testing.T) {
 			a: &Foo{},
 			b: func() *Foo {
 				v := Init(&Foo{}, nil).(*Foo)
-				v.addUnresolvedField("b", "test", nil, "Data",
+				_ = v.addUnresolvedField("b", "test", nil, "Data",
 					v._parentValue.FieldByName("Data"), true,
 					fakeMap(fakeScalarNode("data"), fakeScalarNode("test-data")),
 				)
@@ -90,7 +90,7 @@ func TestBaseField_Inherit(t *testing.T) {
 
 			a: func() *Foo {
 				v := Init(&Foo{}, nil).(*Foo)
-				v.addUnresolvedField("a", "test", nil, "Data",
+				_ = v.addUnresolvedField("a", "test", nil, "Data",
 					v._parentValue.FieldByName("Data"), true,
 					fakeMap(fakeScalarNode("a"), fakeScalarNode("test-data")),
 				)
@@ -98,7 +98,7 @@ func TestBaseField_Inherit(t *testing.T) {
 			}(),
 			b: func() *Foo {
 				v := Init(&Foo{}, nil).(*Foo)
-				v.addUnresolvedField("b", "test", nil, "Data",
+				_ = v.addUnresolvedField("b", "test", nil, "Data",
 					v._parentValue.FieldByName("Data"), true,
 					fakeMap(fakeScalarNode("b"), fakeScalarNode("test-data")),
 				)
