@@ -43,6 +43,7 @@ type tagSpec struct {
 	inline    bool
 	omitempty bool
 	inlineMap bool
+	disableRS bool
 }
 
 // parseFieldTags
@@ -104,6 +105,8 @@ func (f *BaseField) parseFieldTags(sf *reflect.StructField, dataTagNS string) (*
 			// only supports map[string]Any
 			ret.inlineMap = true
 		case "":
+		case "disabled":
+			ret.disableRS = true
 		default:
 			return nil, fmt.Errorf(
 				"unknown rs tag value %q for %s.%s",
@@ -279,6 +282,9 @@ type fieldRef struct {
 	// this field is only set to true for fields with
 	// `rs:"other"` struct field tag
 	isInlineMapItem bool
+
+	// disable rendering suffix support
+	disableRS bool
 }
 
 // addField adds one field identified by its yamlKey
@@ -303,6 +309,7 @@ func (f *BaseField) addField(
 			base:       base,
 
 			isInlineMapItem: true,
+			disableRS:       ts.disableRS,
 		}
 
 		return true
@@ -326,6 +333,7 @@ func (f *BaseField) addField(
 
 		omitempty:       ts.omitempty,
 		isInlineMapItem: false,
+		disableRS:       ts.disableRS,
 	}
 
 	return true

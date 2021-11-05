@@ -110,12 +110,12 @@ func (f *BaseField) unmarshalNoRS(yamlKey string, kv []*yaml.Node, field *fieldR
 }
 
 func (f *BaseField) unmarshalRS(yamlKey, suffix string, kv []*yaml.Node) error {
+	field := f.getField(yamlKey)
+
 	v := prepareYamlNode(kv[1])
 	if v == nil {
 		v = kv[1]
 	}
-
-	field := f.getField(yamlKey)
 	if field == nil {
 		v = fakeMap(cloneYamlNode(kv[0], strTag, yamlKey), v)
 		field = f.inlineMap
@@ -132,6 +132,12 @@ func (f *BaseField) unmarshalRS(yamlKey, suffix string, kv []*yaml.Node) error {
 	}
 
 	// field is not nil
+
+	if field.disableRS {
+		return fmt.Errorf("rendering suffix is not allowed to %q (%s)",
+			yamlKey, f._parentType.String(),
+		)
+	}
 
 	return field.base.addUnresolvedField(yamlKey, suffix, nil,
 		field.fieldName, field.fieldValue, field.isInlineMapItem, v,

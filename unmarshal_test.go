@@ -833,3 +833,25 @@ func TestBaseField_UnmarshalYAML_Init(t *testing.T) {
 		// TODO
 	})
 }
+
+func TestRS_Tag_Disabled(t *testing.T) {
+	type TestCase struct {
+		BaseField
+
+		Enabled  interface{} `yaml:"enabled" rs:""`
+		Disabled interface{} `yaml:"disabled" rs:"disabled"`
+	}
+
+	out := Init(&TestCase{}, nil).(*TestCase)
+	t.Run("Good", func(t *testing.T) {
+		assert.NoError(t, yaml.Unmarshal([]byte(`{ enabled@foo: foo, disabled: ok }`), out))
+	})
+
+	t.Run("Bad", func(t *testing.T) {
+		assert.Error(t, yaml.Unmarshal([]byte(`{ enabled: foo, disabled@foo: bar }`), out))
+	})
+
+	t.Run("Invalid", func(t *testing.T) {
+		assert.Error(t, yaml.Unmarshal([]byte(`{ enabled: foo, some@foo: bar }`), out))
+	})
+}
