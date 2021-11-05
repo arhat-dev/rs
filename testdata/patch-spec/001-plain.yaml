@@ -1,4 +1,7 @@
 foo@!:
   value: a
+tag-foo: !rs:!
+  value: a
 ---
 foo: a
+tag-foo: a

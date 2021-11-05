@@ -3,6 +3,13 @@ foo@!:
   merge:
   - value:
       a: a
+tag-foo: !rs:!
+  value: {}
+  merge:
+  - value:
+      a: a
 ---
 foo:
+  a: a
+tag-foo:
   a: a

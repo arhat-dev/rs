@@ -7,6 +7,17 @@ foo@!:
   - op: replace
     path: /a
     value: b
+tag-foo: !rs:!
+  value: {}
+  merge:
+  - value:
+      a: a
+  patch:
+  - op: replace
+    path: /a
+    value: b
 ---
 foo:
+  a: b
+tag-foo:
   a: b

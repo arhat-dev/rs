@@ -2,5 +2,10 @@ foo@!:
   value: a
   select: |-
     . + "-b"
+tag-foo: !rs:!
+  value: a
+  select: |-
+    . + "-b"
 ---
 foo: a-b
+tag-foo: a-b

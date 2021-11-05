@@ -3,5 +3,11 @@ foo@!:
   merge:
   - value:
     - b
+tag-foo: !rs:!
+  value: [a]
+  merge:
+  - value:
+    - b
 ---
 foo: [a, b]
+tag-foo: [a, b]

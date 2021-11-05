@@ -6,6 +6,15 @@ bool-true-from-bool@?bool: true
 bool-false-from-bool@?bool: false
 bool-true-from-quoted-str@?bool: '"true"'
 bool-false-from-quoted-str@?bool: '"false"'
+
+tag-bool-true: !rs: true
+tag-bool-false: !rs: false
+tag-bool-true-from-str: !rs:?bool "true"
+tag-bool-false-from-str: !rs:?bool "false"
+tag-bool-true-from-bool: !rs:?bool true
+tag-bool-false-from-bool: !rs:?bool false
+tag-bool-true-from-quoted-str: !rs:?bool '"true"'
+tag-bool-false-from-quoted-str: !rs:?bool '"false"'
 ---
 bool-true: true
 bool-false: false
@@ -15,3 +24,12 @@ bool-true-from-bool: true
 bool-false-from-bool: false
 bool-true-from-quoted-str: true
 bool-false-from-quoted-str: false
+
+tag-bool-true: true
+tag-bool-false: false
+tag-bool-true-from-str: true
+tag-bool-false-from-str: false
+tag-bool-true-from-bool: true
+tag-bool-false-from-bool: false
+tag-bool-true-from-quoted-str: true
+tag-bool-false-from-quoted-str: false

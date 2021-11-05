@@ -17,120 +17,125 @@ func (f *BaseField) UnmarshalYAML(n *yaml.Node) error {
 	}
 
 	if n.Kind != yaml.MappingNode {
-		return fmt.Errorf(
-			"rs: unexpected non map data %q for struct %q unmarshaling",
+		return fmt.Errorf("rs: unexpected non map data %q for struct %q unmarshaling",
 			n.Tag, f._parentType.String(),
 		)
 	}
 
 	oneLevelMap, err := unmarshalYamlMap(n)
 	if err != nil {
-		return fmt.Errorf(
-			"rs: data unmarshal failed for %s: %w",
+		return fmt.Errorf("rs: data unmarshal failed for %s: %w",
 			f._parentType.String(), err,
 		)
 	}
 
-	visited := make(map[string]struct{})
-	allowUnknown := f._opts != nil && f._opts.AllowUnknownFields
-
 	// set values
 	for _, kv := range oneLevelMap {
 		rawYamlKey := kv[0].Value
-		suffixStart := strings.LastIndexByte(rawYamlKey, '@')
-		yamlKey := rawYamlKey
 
-		// try to find a field with rendering suffix unstripped
-		// cause you can have your tag `yaml:"foo@http"`, then your yaml key
-		// is `foo@http`, not `foo` with rendering suffix `@http`
+		// custom tag with `!rs:` prefix can also indicate rendering suffix
 
-		field := f.getField(yamlKey)
-		if suffixStart == -1 || field != nil {
-			// no rendering suffix or matched some field, fill value directly
+		var (
+			suffixStart = strings.LastIndexByte(rawYamlKey, '@')
+			field       = f.getField(rawYamlKey)
+			rsTag       = strings.TrimPrefix(strings.TrimPrefix(kv[1].Tag, "!rs:"), "!tag:arhat.dev/rs:")
 
-			if _, ok := visited[yamlKey]; ok {
-				return fmt.Errorf(
-					"rs: duplicate yaml field %q for %s",
-					yamlKey, f._parentType.String(),
-				)
-			}
+			yamlKey string
+		)
+		switch {
+		case rsTag != kv[1].Tag:
+			// this field is definitely using rendering suffix as
+			// indicated by its tag, which can only be set manually
+			// in yaml
+			//
+			// In this case, user MUST NOT set @ style rendering suffix
+			// at the same time
 
-			visited[yamlKey] = struct{}{}
+			kv[1].Tag = ""
+			yamlKey = rawYamlKey
+			err = f.unmarshalRS(yamlKey, rsTag, kv)
+		case field != nil,
+			suffixStart == -1:
+			// matched struct field tag `yaml:"foo@http"`
+			// or having no rendering suffix
+			//
+			// this field is definitely not using rendering suffix
 
-			v := kv[1]
-			if field == nil {
-				if f.inlineMap == nil {
-					if allowUnknown {
-						continue
-					}
+			yamlKey = rawYamlKey
+			err = f.unmarshalNoRS(yamlKey, kv, field)
+		default:
+			// suffixStart != -1 (always true)
+			// has rendering suffix suffix, and no field tag with exact match
 
-					return fmt.Errorf(
-						"rs: unknown yaml field %q for %s",
-						yamlKey, f._parentType.String(),
-					)
-				}
-
-				field = f.inlineMap
-				v = fakeMap(kv[0], kv[1])
-			}
-
-			err = unmarshal(
-				yamlKey,
-				v,
-				field.fieldValue,
-				&field.isInlineMapItem,
-				f._opts,
-			)
-			if err != nil {
-				return fmt.Errorf(
-					"rs: failed to unmarshal yaml field %q to %s.%s: %w",
-					yamlKey, f._parentType.String(), field.fieldName, err,
-				)
-			}
-
-			continue
+			yamlKey = rawYamlKey[:suffixStart]
+			err = f.unmarshalRS(yamlKey, rawYamlKey[suffixStart+1:], kv)
 		}
 
-		// has rendering suffix
+		if err != nil {
+			return err
+		}
+	}
 
-		yamlKey, suffix := rawYamlKey[:suffixStart], rawYamlKey[suffixStart+1:]
+	return nil
+}
 
-		v := kv[1]
-		field = f.getField(yamlKey)
-		if field == nil {
-			if f.inlineMap == nil {
-				if allowUnknown {
-					continue
-				}
+func (f *BaseField) unmarshalNoRS(yamlKey string, kv []*yaml.Node, field *fieldRef) error {
+	v := kv[1]
+	if field == nil {
+		field = f.inlineMap
+		v = fakeMap(kv[0], kv[1])
+	}
 
-				return fmt.Errorf(
-					"rs: unknown yaml field %q for %s",
-					yamlKey, f._parentType.String(),
-				)
-			}
-
-			field = f.inlineMap
-			v = fakeMap(cloneYamlNode(kv[0], strTag, yamlKey), kv[1])
+	if field == nil {
+		if f._opts != nil && f._opts.AllowUnknownFields {
+			// allows unknown fields
+			return nil
 		}
 
-		if _, ok := visited[yamlKey]; ok && !field.isInlineMapItem {
-			return fmt.Errorf(
-				"rs: duplicate yaml data field %q for %s, please note"+
-					" rendering suffix won't change the field name",
-				yamlKey, f._parentType.String(),
-			)
-		}
-
-		// do not unmarshal now, we only render the value
-		// when calling ResolveFields
-
-		visited[yamlKey] = struct{}{}
-
-		field.base.addUnresolvedField(yamlKey, suffix, nil,
-			field.fieldName, field.fieldValue, field.isInlineMapItem,
-			v,
+		return fmt.Errorf("rs: unknown yaml field %q to %s",
+			yamlKey, f._parentType.String(),
 		)
 	}
+
+	// field is not nil
+
+	err := unmarshal(yamlKey, v, field.fieldValue, &field.isInlineMapItem, f._opts)
+	if err != nil {
+		return fmt.Errorf("rs: failed to unmarshal yaml field %q to %s.%s: %w",
+			yamlKey, f._parentType.String(), field.fieldName, err,
+		)
+	}
+
+	return nil
+}
+
+func (f *BaseField) unmarshalRS(yamlKey, suffix string, kv []*yaml.Node) error {
+	v := prepareYamlNode(kv[1])
+	if v == nil {
+		v = kv[1]
+	}
+
+	field := f.getField(yamlKey)
+	if field == nil {
+		v = fakeMap(cloneYamlNode(kv[0], strTag, yamlKey), v)
+		field = f.inlineMap
+	}
+
+	if field == nil {
+		if f._opts != nil && f._opts.AllowUnknownFields {
+			return nil
+		}
+
+		return fmt.Errorf("rs: unknown yaml field %q to %s",
+			yamlKey, f._parentType.String(),
+		)
+	}
+
+	// field is not nil
+
+	field.base.addUnresolvedField(yamlKey, suffix, nil,
+		field.fieldName, field.fieldValue, field.isInlineMapItem, v,
+	)
 
 	return nil
 }

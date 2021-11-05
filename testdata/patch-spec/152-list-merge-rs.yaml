@@ -16,9 +16,33 @@ bar@!:
           d: e
   - value@echo:
   - value:
+tag-foo: !rs:!
+  value: !rs:echo [a]
+  merge:
+  - value: !rs:echo
+    - b
+  - value: !rs:echo |-
+      - c
+      - d
+tag-bar: !rs:!
+  value: [a]
+  merge:
+  - value: !rs:echo
+    - b: !rs:add-suffix-test b
+  - value: !rs:echo |-
+      - c@?str:
+          d: e
+  - value: !rs:echo
+  - value:
 ---
 foo: [a, b, c, d]
 bar:
+- a
+- b: b-test
+- c: |-
+    d: e
+tag-foo: [a, b, c, d]
+tag-bar:
 - a
 - b: b-test
 - c: |-

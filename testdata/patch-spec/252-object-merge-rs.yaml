@@ -6,8 +6,20 @@ foo@!:
       b@add-suffix-test: b
   - value@echo: |-
       c@add-suffix-test: c
+tag-foo: !rs:!
+  value: !rs:echo
+    a: !rs:add-suffix-test a
+  merge:
+  - value: !rs:echo
+      b: !rs:add-suffix-test b
+  - value: !rs:echo |-
+      c: !rs:add-suffix-test c
 ---
 foo:
+  a: a-test
+  b: b-test
+  c: c-test
+tag-foo:
   a: a-test
   b: b-test
   c: c-test

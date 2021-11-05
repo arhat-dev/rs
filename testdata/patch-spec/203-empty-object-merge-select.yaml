@@ -7,6 +7,17 @@ foo@!:
       { a: (.a + "-merge-selected") }
   select: |-
     { a: (.a + "+outer-selected") }
+tag-foo: !rs:!
+  value: {}
+  merge:
+  - value:
+      a: a
+    select: |-
+      { a: (.a + "-merge-selected") }
+  select: |-
+    { a: (.a + "+outer-selected") }
 ---
 foo:
+  a: a-merge-selected+outer-selected
+tag-foo:
   a: a-merge-selected+outer-selected

@@ -5,7 +5,17 @@ foo@!:
       a@add-suffix-test: a
   - value@echo:
       b@add-suffix-test: b
+tag-foo: !rs:!
+  value: {}
+  merge:
+  - value: !rs:echo
+      a: !rs:add-suffix-test a
+  - value: !rs:echo
+      b: !rs:add-suffix-test b
 ---
 foo:
+  a: a-test
+  b: b-test
+tag-foo:
   a: a-test
   b: b-test

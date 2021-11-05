@@ -7,8 +7,21 @@ str-from-map@?str:
 str-from-arr@?str:
 - foo
 - bar
-str-from-bool-true@?str: true
+str-from-bool-true@?str: &ref_1 true
 str-from-bool-false@?str: false
+str-from-bool-true-alias@?str: *ref_1
+
+tag-str: !rs: "str"
+tag-str-from-float: !tag:arhat.dev/rs:?str 1.100
+tag-str-from-str: !tag:arhat.dev/rs:?str "bar"
+tag-str-from-int: !tag:arhat.dev/rs:?str 100
+tag-str-from-map: !tag:arhat.dev/rs:?str
+  foo: bar
+tag-str-from-arr: !tag:arhat.dev/rs:?str
+- foo
+- bar
+tag-str-from-bool-true: !tag:arhat.dev/rs:?str true
+tag-str-from-bool-false: !tag:arhat.dev/rs:?str false
 ---
 str: "str"
 str-from-float: "1.100"
@@ -21,3 +34,16 @@ str-from-arr: |-
   - bar
 str-from-bool-true: "true"
 str-from-bool-false: "false"
+str-from-bool-true-alias: "true"
+
+tag-str: "str"
+tag-str-from-float: "1.100"
+tag-str-from-str: bar
+tag-str-from-int: "100"
+tag-str-from-map: |-
+  foo: bar
+tag-str-from-arr: |-
+  - foo
+  - bar
+tag-str-from-bool-true: "true"
+tag-str-from-bool-false: "false"

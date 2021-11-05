@@ -3,5 +3,11 @@ foo@!:
   merge@echo:
   - value@echo:
     - data
+tag-foo: !rs:!
+  value: []
+  merge: !rs:echo
+  - value: !rs:echo
+    - data
 ---
 foo: [data]
+tag-foo: [data]

@@ -7,5 +7,15 @@ foo@!:
       [.[0] + "-merge-selected"]
   select: |-
     [.[0] + "+outer-selected"]
+tag-foo: !rs:!
+  value: []
+  merge:
+  - value:
+    - a
+    select: |-
+      [.[0] + "-merge-selected"]
+  select: |-
+    [.[0] + "+outer-selected"]
 ---
 foo: [a-merge-selected+outer-selected]
+tag-foo: [a-merge-selected+outer-selected]

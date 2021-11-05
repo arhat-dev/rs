@@ -2,8 +2,18 @@ float@: 1.1
 float-from-str@?float: "1.100"
 float-from-quoted-str@?float: '"1.100"'
 float-from-float@?float: 1.100
+
+tag-float: !rs: 1.1
+tag-float-from-str: !rs:?float "1.100"
+tag-float-from-quoted-str: !rs:?float '"1.100"'
+tag-float-from-float: !rs:?float 1.100
 ---
 float: 1.1
 float-from-str: 1.1
 float-from-quoted-str: 1.1
 float-from-float: 1.1
+
+tag-float: 1.1
+tag-float-from-str: 1.1
+tag-float-from-quoted-str: 1.1
+tag-float-from-float: 1.1

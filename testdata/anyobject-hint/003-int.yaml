@@ -2,8 +2,18 @@ int@: 1
 int-from-str@?int: "1"
 int-from-quoted-str@?int: '"1"'
 int-from-int@?int: 1
+
+tag-int: !rs: 1
+tag-int-from-str: !rs:?int "1"
+tag-int-from-quoted-str: !rs:?int '"1"'
+tag-int-from-int: !rs:?int 1
 ---
 int: 1
 int-from-str: 1
 int-from-quoted-str: 1
 int-from-int: 1
+
+tag-int: 1
+tag-int-from-str: 1
+tag-int-from-quoted-str: 1
+tag-int-from-int: 1

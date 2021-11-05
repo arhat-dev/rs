@@ -3,10 +3,23 @@ map@:
 map-from-str@?obj: "{foo: bar}"
 map-from-map@?obj:
   foo: bar
+
+tag-map: !rs:
+  foo: bar
+tag-map-from-str: !rs:?obj "{foo: bar}"
+tag-map-from-map: !rs:?obj
+  foo: bar
 ---
 map:
   foo: bar
 map-from-str:
   foo: bar
 map-from-map:
+  foo: bar
+
+tag-map:
+  foo: bar
+tag-map-from-str:
+  foo: bar
+tag-map-from-map:
   foo: bar

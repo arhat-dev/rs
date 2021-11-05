@@ -4,7 +4,16 @@ foo@!:
   merge:
   - value:
       b: b
+tag-foo: !rs:!
+  value:
+    a: a
+  merge:
+  - value:
+      b: b
 ---
 foo:
+  a: a
+  b: b
+tag-foo:
   a: a
   b: b
