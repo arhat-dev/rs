@@ -225,7 +225,7 @@ func handleUnresolvedField(
 			toResolve,
 		)
 		if err != nil {
-			return nil, fmt.Errorf("failed to render value for %q", yamlKey)
+			return nil, fmt.Errorf("failed to render value for %q: %w", yamlKey, err)
 		}
 	}
 
@@ -250,7 +250,7 @@ func handleUnresolvedField(
 		)
 	}
 
-	return inlineMapItemCache, tryResolve(rc, depth-1, target)
+	return inlineMapItemCache, handleResolvedField(rc, depth, target)
 }
 
 func tryRender(
