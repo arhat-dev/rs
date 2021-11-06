@@ -47,6 +47,12 @@ func (f *BaseField) ResolveFields(rc RenderingHandler, depth int, names ...strin
 			}
 		}
 
+		if f.inlineMap != nil {
+			// the inline map haves been resolved above, so let's go to
+			// values of these inline map entries
+			return handleResolvedField(rc, depth, f.inlineMap.fieldValue)
+		}
+
 		return nil
 	}
 
