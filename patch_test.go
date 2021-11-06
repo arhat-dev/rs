@@ -87,7 +87,7 @@ func TestUniqueList(t *testing.T) {
 	}
 }
 
-func createMergeValue(t *testing.T, i interface{}) []MergeSource {
+func createPatchValue(t *testing.T, i interface{}) *yaml.Node {
 	data, err := yaml.Marshal(i)
 	if !assert.NoError(t, err) {
 		t.FailNow()
@@ -100,7 +100,11 @@ func createMergeValue(t *testing.T, i interface{}) []MergeSource {
 		return nil
 	}
 
-	return []MergeSource{{Value: ret}}
+	return ret
+}
+
+func createMergeValue(t *testing.T, i interface{}) []MergeSource {
+	return []MergeSource{{Value: createPatchValue(t, i)}}
 }
 
 func createExpectedYamlValue(t *testing.T, i interface{}) string {
@@ -117,40 +121,40 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 	tests := []struct {
 		name string
 
-		spec     PatchSpec
-		original interface{}
+		spec PatchSpec
 
 		expectErr bool
 		expected  interface{}
 	}{
 		{
-			name:     "Valid Nop List Merge",
-			spec:     PatchSpec{},
-			original: []interface{}{"a", "b", "c"},
+			name: "Valid Nop List Merge",
+			spec: PatchSpec{
+				Value: createPatchValue(t, []interface{}{"a", "b", "c"}),
+			},
 			expected: []interface{}{"a", "b", "c"},
 		},
 		{
 			name: "Valid List Merge Only",
 			spec: PatchSpec{
+				Value: nil,
 				Merge: createMergeValue(t, []string{"a", "b", "c"}),
 			},
-			original: nil,
 			expected: []interface{}{"a", "b", "c"},
 		},
 		{
 			name: "Invalid List Merge Type Not Match",
 			spec: PatchSpec{
+				Value: createPatchValue(t, []interface{}{"a", "b", "c"}),
 				Merge: createMergeValue(t, "oops: not a list"),
 			},
-			original:  []interface{}{"a", "b", "c"},
 			expectErr: true,
 		},
 		{
 			name: "List Merge",
 			spec: PatchSpec{
+				Value: createPatchValue(t, []interface{}{"a", "b", "c"}),
 				Merge: createMergeValue(t, []string{"c", "d", "e", "f"}),
 			},
-			original: []interface{}{"a", "b", "c"},
 			expected: []interface{}{
 				"a", "b", "c",
 				"c", // expected dup
@@ -160,47 +164,48 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 		{
 			name: "List Merge Unique",
 			spec: PatchSpec{
+				Value:  createPatchValue(t, []interface{}{"a", "c", "c"}),
 				Merge:  createMergeValue(t, []string{"c", "d", "c", "f"}),
 				Unique: true,
 			},
-			original: []interface{}{"a", "c", "c"},
 			expected: []interface{}{"a", "c", "d", "f"},
 		},
 		{
-			name:     "Valid Nop Map Merge",
-			spec:     PatchSpec{},
-			original: map[string]interface{}{"foo": "bar"},
+			name: "Valid Nop Map Merge",
+			spec: PatchSpec{
+				Value: createPatchValue(t, map[string]interface{}{"foo": "bar"}),
+			},
 			expected: map[string]interface{}{"foo": "bar"},
 		},
 		{
 			name: "Valid Map Merge Only",
 			spec: PatchSpec{
+				Value: nil,
 				Merge: createMergeValue(t, map[string]string{
 					"foo": "bar",
 				}),
 			},
-			original: nil,
 			expected: map[string]interface{}{"foo": "bar"},
 		},
 		{
 			name: "Map Merge No List Append",
 			spec: PatchSpec{
+				Value: createPatchValue(t, map[string]interface{}{"a": []interface{}{"b", "c"}}),
 				Merge: createMergeValue(t, map[string][]string{
 					"a": {"a"},
 				}),
 			},
-			original: map[string]interface{}{"a": []interface{}{"b", "c"}},
 			expected: map[string]interface{}{"a": []interface{}{"a"}},
 		},
 		{
 			name: "Map Merge Append List",
 			spec: PatchSpec{
+				Value: createPatchValue(t, map[string]interface{}{"a": []interface{}{"b", "c"}}),
 				Merge: createMergeValue(t, map[string][]string{
 					"a": {"a"},
 				}),
 				MapListAppend: true,
 			},
-			original: map[string]interface{}{"a": []interface{}{"b", "c"}},
 			expected: map[string]interface{}{
 				"a": []interface{}{"b", "c", "a"},
 			},
@@ -209,7 +214,7 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			result, err := test.spec.ApplyTo(&testRenderingHandler{}, test.original)
+			result, err := test.spec.Apply(&testRenderingHandler{})
 			if test.expectErr {
 				assert.Error(t, err)
 				return

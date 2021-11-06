@@ -288,35 +288,39 @@ func tryRender(
 	isPatchSpec bool,
 	toResolve *yaml.Node,
 ) (*yaml.Node, error) {
-	var (
-		patchSpec *PatchSpec
-		patchSrc  interface{}
-		err       error
-	)
-
 	if isPatchSpec {
-		patchSpec, patchSrc, err = resolvePatchSpec(rc, toResolve)
+		patchSpec, err := resolvePatchSpec(rc, toResolve)
 		if err != nil {
-			return nil, fmt.Errorf(
-				"failed to resolve patch spec for renderer %q: %w",
-				rendererName, err,
-			)
+			return nil, fmt.Errorf("invalid patch spec: %w", err)
 		}
 
-		// should use patchSrc instead of toResolve since we need to patch
-		toResolve = nil
+		patchedData, err := patchSpec.Apply(rc)
+		if err != nil {
+			return nil, fmt.Errorf("failed to apply patch: %w", err)
+		}
+
+		// patch doc is generated from arbitrary yaml data
+		// with built-in interface{}, so we are able to marshal it into
+		// json, and parse as *yaml.Node for further processing
+
+		var dataBytes []byte
+		dataBytes, err = json.Marshal(patchedData)
+		if err != nil {
+			return nil, fmt.Errorf("failed to marshal patched data: %w", err)
+		}
+
+		// json data is deemed to be valid yaml, if not, we must have some
+		// big problem. so we don't need to recover yaml.Unmarshal from panic
+		// here
+		toResolve = new(yaml.Node)
+		err = yaml.Unmarshal(dataBytes, toResolve)
+		if err != nil {
+			return nil, fmt.Errorf("failed to prepare patched data: %w", err)
+		}
 	}
 
 	if len(rendererName) != 0 {
-		var renderedData []byte
-
-		var input interface{} = toResolve
-		if patchSpec != nil {
-			// resolve patch value if was a patch
-			input = patchSrc
-		}
-
-		renderedData, err = rc.RenderYaml(rendererName, input)
+		renderedData, err := rc.RenderYaml(rendererName, toResolve)
 		if err != nil {
 			return nil, fmt.Errorf(
 				"renderer %q failed to render value: %w",
@@ -355,59 +359,8 @@ func tryRender(
 		}
 	}
 
-	// apply patch if set
-	if patchSpec != nil {
-		// apply type hint before patching to make sure value
-		// being patched is correctly typed
-
-		var tmp interface{}
-		if toResolve == nil {
-			// toResolve can be nill if this is a patch without
-			// renderer (e.g. `foo@!: { ... }`)
-			tmp = patchSrc
-		} else {
-			toResolve, err = applyHint(typeHint, toResolve)
-			if err != nil {
-				return nil, fmt.Errorf(
-					"failed to ensure type hint %q on patch target: %w", typeHint, err,
-				)
-			}
-
-			err = toResolve.Decode(&tmp)
-			if err != nil {
-				return nil, fmt.Errorf(
-					"failed to decode data as patch source: %w", err,
-				)
-			}
-		}
-
-		tmp, err = patchSpec.ApplyTo(rc, tmp)
-		if err != nil {
-			return nil, fmt.Errorf("failed to apply patches: %w", err)
-		}
-
-		// patch doc is generated from arbitrary yaml data
-		// with built-in interface{}, so we are able to marshal it into
-		// json, and parse as *yaml.Node for further processing
-
-		var dataBytes []byte
-		dataBytes, err = json.Marshal(tmp)
-		if err != nil {
-			return nil, fmt.Errorf("failed to marshal patched data: %w", err)
-		}
-
-		// json data is deemed to be valid yaml, if not, that means we
-		// have a big problem then. so we don't need to save yaml.Unmarshal
-		// from panic here
-		toResolve = new(yaml.Node)
-		err = yaml.Unmarshal(dataBytes, toResolve)
-		if err != nil {
-			return nil, fmt.Errorf("failed to prepare patched data: %w", err)
-		}
-	}
-
 	// apply hint after resolving (rendering)
-	toResolve, err = applyHint(typeHint, toResolve)
+	toResolve, err := applyHint(typeHint, toResolve)
 	if err != nil {
 		return nil, fmt.Errorf("failed to ensure type hint %q: %w", typeHint, err)
 	}
@@ -501,17 +454,12 @@ func applyHint(hint TypeHint, in *yaml.Node) (*yaml.Node, error) {
 
 // resolve user provided data as patch spec
 func resolvePatchSpec(
-	rc RenderingHandler,
-	toResolve *yaml.Node,
-) (
-	patchSpec *PatchSpec,
-	value interface{},
-	err error,
-) {
+	rc RenderingHandler, toResolve *yaml.Node,
+) (patchSpec *PatchSpec, err error) {
 	patchSpec = Init(&PatchSpec{}, nil).(*PatchSpec)
 	err = toResolve.Decode(patchSpec)
 	if err != nil {
-		return nil, nil, fmt.Errorf(
+		return nil, fmt.Errorf(
 			"failed to decode patch spec: %w",
 			err,
 		)
@@ -519,16 +467,13 @@ func resolvePatchSpec(
 
 	err = patchSpec.ResolveFields(rc, -1)
 	if err != nil {
-		return nil, nil, fmt.Errorf(
+		return nil, fmt.Errorf(
 			"failed to resolve patch spec: %w",
 			err,
 		)
 	}
 
-	value, err = handleOptionalRenderingSuffixResolving(
-		rc, patchSpec.Value, patchSpec.Resolve,
-	)
-	return patchSpec, value, err
+	return patchSpec, err
 }
 
 func handleOptionalRenderingSuffixResolving(rc RenderingHandler, n *yaml.Node, resolve *bool) (interface{}, error) {

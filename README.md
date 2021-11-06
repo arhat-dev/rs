@@ -71,13 +71,15 @@ As you may also be wondering how can `foo@env` be resolved as `foo` since they a
 - Supports arbitraty yaml doc without type definition in your own code.
   - Use [`AnyObject`](https://pkg.go.dev/arhat.dev/rs#AnyObject) as `interface{}`.
   - Use [`AnyObjectMap`](https://pkg.go.dev/arhat.dev/rs#AnyObjectMap) as `map[string]interface{}`.
-- Everything `gopkg.in/yaml.v3` supports are supported.
+- Everything (except `map`s using `interface{}` key) `gopkg.in/yaml.v3` supports are supported.
 - Extended but still vanilla yaml, your yaml doc stays valid for all standard yaml parser.
 
-Sample YAML Doc with all features above
+Sample YAML doc with all features mentioned above:
 
 ```yaml
+# patch spec `!`
 foo@a!: &foo
+  # rendering pipeline with type hint
   value@env|http?[]obj: https://example.com/${FOO_FILE_PATH}
   merge:
   - value@file: ./value-a.yml
