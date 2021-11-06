@@ -9,6 +9,11 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+func (f *fieldRef) stripBase() *fieldRef {
+	f.base = nil
+	return f
+}
+
 var _ RenderingHandler = (*testRenderingHandler)(nil)
 
 type testRenderingHandler struct{}

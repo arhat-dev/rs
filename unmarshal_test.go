@@ -241,10 +241,13 @@ bool_ptr: null
 				BaseField: BaseField{
 					unresolvedNormalFields: map[string]*unresolvedFieldSpec{
 						"str": {
-							fieldName:  "Str",
-							fieldValue: reflect.Value{},
-							rawData:    fakeScalarNode("bar"),
-							renderers:  []*rendererSpec{{name: "add-suffix-test"}},
+							ref: &fieldRef{
+								tagName:    "str",
+								fieldName:  "Str",
+								fieldValue: reflect.Value{},
+							},
+							rawData:   fakeScalarNode("bar"),
+							renderers: []*rendererSpec{{name: "add-suffix-test"}},
 						},
 					},
 				},
@@ -265,18 +268,24 @@ bool_ptr: null
 					unresolvedInlineMapItems: map[string][]*unresolvedFieldSpec{
 						"other": {
 							{
-								fieldName:       "other",
-								fieldValue:      reflect.Value{},
-								rawData:         fakeMap(fakeScalarNode("other"), fakeScalarNode("foo")),
-								renderers:       []*rendererSpec{{name: "echo"}},
-								isInlineMapItem: true,
+								ref: &fieldRef{
+									tagName:     "other",
+									fieldName:   "Other",
+									fieldValue:  reflect.Value{},
+									isInlineMap: true,
+								},
+								rawData:   fakeMap(fakeScalarNode("other"), fakeScalarNode("foo")),
+								renderers: []*rendererSpec{{name: "echo"}},
 							},
 							{
-								fieldName:       "other",
-								fieldValue:      reflect.Value{},
-								rawData:         fakeMap(fakeScalarNode("other"), fakeScalarNode("bar")),
-								renderers:       []*rendererSpec{{name: "echo"}},
-								isInlineMapItem: true,
+								ref: &fieldRef{
+									tagName:     "other",
+									fieldName:   "Other",
+									fieldValue:  reflect.Value{},
+									isInlineMap: true,
+								},
+								rawData:   fakeMap(fakeScalarNode("other"), fakeScalarNode("bar")),
+								renderers: []*rendererSpec{{name: "echo"}},
 							},
 						},
 					},
@@ -303,18 +312,24 @@ bool_ptr: null
 					// unresolvedNormalFields: map[string]*unresolvedFieldSpec{},
 					unresolvedInlineMapItems: map[string][]*unresolvedFieldSpec{
 						"other_field_1": {{
-							fieldName:       "other_field_1",
-							fieldValue:      reflect.Value{},
-							rawData:         fakeMap(fakeScalarNode("other_field_1"), fakeScalarNode("foo")),
-							renderers:       []*rendererSpec{{name: "echo"}},
-							isInlineMapItem: true,
+							ref: &fieldRef{
+								tagName:     "other",
+								fieldName:   "Other",
+								fieldValue:  reflect.Value{},
+								isInlineMap: true,
+							},
+							rawData:   fakeMap(fakeScalarNode("other_field_1"), fakeScalarNode("foo")),
+							renderers: []*rendererSpec{{name: "echo"}},
 						}},
 						"other_field_2": {{
-							fieldName:       "other_field_2",
-							fieldValue:      reflect.Value{},
-							rawData:         fakeMap(fakeScalarNode("other_field_2"), fakeScalarNode("bar")),
-							renderers:       []*rendererSpec{{name: "add-suffix-test"}},
-							isInlineMapItem: true,
+							ref: &fieldRef{
+								tagName:     "other",
+								fieldName:   "Other",
+								fieldValue:  reflect.Value{},
+								isInlineMap: true,
+							},
+							rawData:   fakeMap(fakeScalarNode("other_field_2"), fakeScalarNode("bar")),
+							renderers: []*rendererSpec{{name: "add-suffix-test"}},
 						}},
 					},
 				},
@@ -352,17 +367,23 @@ array@echo|echo|echo: |-
 					BaseField: BaseField{
 						unresolvedNormalFields: map[string]*unresolvedFieldSpec{
 							"string_map": {
-								fieldName:  "StringMap",
-								fieldValue: reflect.Value{},
-								rawData:    fakeScalarNode("c: e"),
+								ref: &fieldRef{
+									tagName:    "string_map",
+									fieldName:  "StringMap",
+									fieldValue: reflect.Value{},
+								},
+								rawData: fakeScalarNode("c: e"),
 								renderers: []*rendererSpec{
 									{name: "echo"},
 									{name: "echo"},
 								},
 							},
 							"array": {
-								fieldName:  "Array",
-								fieldValue: reflect.Value{},
+								ref: &fieldRef{
+									tagName:    "array",
+									fieldName:  "Array",
+									fieldValue: reflect.Value{},
+								},
 								rawData: fakeScalarNode(`- "1"
 - "2"
 - "3"
@@ -406,17 +427,23 @@ delegated_array@echo|echo|echo: |-
 				BaseField: BaseField{
 					unresolvedNormalFields: map[string]*unresolvedFieldSpec{
 						"delegated_string_map": {
-							fieldName:  "StringMap",
-							fieldValue: reflect.Value{},
-							rawData:    fakeScalarNode("c: e"),
+							ref: &fieldRef{
+								tagName:    "delegated_string_map",
+								fieldName:  "StringMap",
+								fieldValue: reflect.Value{},
+							},
+							rawData: fakeScalarNode("c: e"),
 							renderers: []*rendererSpec{
 								{name: "echo"},
 								{name: "echo"},
 							},
 						},
 						"delegated_array": {
-							fieldName:  "Array",
-							fieldValue: reflect.Value{},
+							ref: &fieldRef{
+								tagName:    "delegated_array",
+								fieldName:  "Array",
+								fieldValue: reflect.Value{},
+							},
 							rawData: fakeScalarNode(`- "1"
 - "2"
 - "3"
@@ -661,12 +688,14 @@ func cleanupBaseField(t *testing.T, f *BaseField) {
 	f.normalFields = nil
 	f.inlineMap = nil
 	for k := range f.unresolvedNormalFields {
-		f.unresolvedNormalFields[k].fieldValue = reflect.Value{}
+		f.unresolvedNormalFields[k].ref.base = nil
+		f.unresolvedNormalFields[k].ref.fieldValue = reflect.Value{}
 		cleanupYamlNode(f.unresolvedNormalFields[k].rawData)
 	}
 	for _, list := range f.unresolvedInlineMapItems {
 		for _, v := range list {
-			v.fieldValue = reflect.Value{}
+			v.ref.base = nil
+			v.ref.fieldValue = reflect.Value{}
 			cleanupYamlNode(v.rawData)
 		}
 	}

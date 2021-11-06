@@ -25,8 +25,13 @@ func (f *BaseField) ResolveFields(rc RenderingHandler, depth int, names ...strin
 	if len(names) == 0 {
 		// resolve all
 
+		err := resolveOverlappedItems(rc, 1, "", f.unresolvedSelfItems, f._parentValue)
+		if err != nil {
+			return err
+		}
+
 		for name, v := range f.normalFields {
-			err := v.base.resolveSingleField(rc, depth, name, v)
+			err := v.base.resolveNormalField(rc, depth, name, v)
 			if err != nil {
 				return fmt.Errorf(
 					"rs: failed to resolve field %s.%s: %w",
@@ -35,13 +40,10 @@ func (f *BaseField) ResolveFields(rc RenderingHandler, depth int, names ...strin
 			}
 		}
 
-		if v := f.inlineMap; v != nil {
-			err := v.base.resolveSingleField(rc, depth, "", v)
+		for k, list := range f.unresolvedInlineMapItems {
+			err := resolveOverlappedItems(rc, depth, k, list, f.inlineMap.fieldValue)
 			if err != nil {
-				return fmt.Errorf(
-					"rs: failed to resolve inline map %s.%s: %w",
-					f._parentType.String(), v.fieldName, err,
-				)
+				return err
 			}
 		}
 
@@ -51,9 +53,27 @@ func (f *BaseField) ResolveFields(rc RenderingHandler, depth int, names ...strin
 	for _, name := range names {
 		v, ok := f.normalFields[name]
 		if !ok {
-			if f.inlineMap != nil && f.inlineMap.fieldName == name {
-				v = f.inlineMap
-			} else {
+			// can be targeting inline map field name
+			switch {
+			case len(name) == 0:
+				// resolve itself (added by virtual key `__`)
+
+				err := resolveOverlappedItems(rc, 1, "", f.unresolvedSelfItems, f._parentValue)
+				if err != nil {
+					return err
+				}
+
+				continue
+			case f.inlineMap != nil && f.inlineMap.fieldName == name:
+				for k, list := range f.unresolvedInlineMapItems {
+					err := resolveOverlappedItems(rc, depth, k, list, f.inlineMap.fieldValue)
+					if err != nil {
+						return err
+					}
+				}
+
+				continue
+			default:
 				return fmt.Errorf(
 					"rs: no such field %q in struct %q",
 					name, f._parentType.String(),
@@ -61,7 +81,7 @@ func (f *BaseField) ResolveFields(rc RenderingHandler, depth int, names ...strin
 			}
 		}
 
-		err := v.base.resolveSingleField(rc, depth, name, v)
+		err := v.base.resolveNormalField(rc, depth, name, v)
 		if err != nil {
 			return fmt.Errorf(
 				"rs: failed to resolve requested field %s of %s: %w",
@@ -73,41 +93,45 @@ func (f *BaseField) ResolveFields(rc RenderingHandler, depth int, names ...strin
 	return nil
 }
 
-func (f *BaseField) resolveSingleField(
+func resolveOverlappedItems(
+	rc RenderingHandler,
+	depth int,
+	k string,
+	list []*unresolvedFieldSpec,
+	fVal reflect.Value,
+) error {
+	var (
+		itemCache *reflect.Value
+		err       error
+	)
+
+	for i, v := range list {
+		itemCache, err = handleUnresolvedField(
+			rc, depth, k, v, itemCache,
+			// flush existing data with the same key on first pair
+			i != 0,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	return handleResolvedField(rc, depth, fVal)
+}
+
+func (f *BaseField) resolveNormalField(
 	rc RenderingHandler,
 	depth int,
 	yamlKey string,
 	targetField *fieldRef,
 ) error {
-	if f.inlineMap == targetField {
-		for k, list := range f.unresolvedInlineMapItems {
-			// v.fieldName is inline map item key in this case
-			var itemCache *reflect.Value
-			for i, v := range list {
-
-				var err error
-				itemCache, err = handleUnresolvedField(
-					rc, depth, k, v, itemCache,
-					// flush existing data with the same key on first pair
-					i != 0,
-					f._opts,
-				)
-				if err != nil {
-					return err
-				}
-			}
-		}
-
-		return handleResolvedField(rc, depth, targetField.fieldValue)
-	}
-
 	v, ok := f.unresolvedNormalFields[yamlKey]
 	if !ok {
 		return handleResolvedField(rc, depth, targetField.fieldValue)
 	}
 
 	_, err := handleUnresolvedField(
-		rc, depth, yamlKey, v, nil, false, f._opts,
+		rc, depth, yamlKey, v, nil, false,
 	)
 	return err
 }
@@ -208,12 +232,11 @@ func handleUnresolvedField(
 	v *unresolvedFieldSpec,
 	inlineMapItemCache *reflect.Value,
 	keepOld bool,
-	opts *Options,
 ) (*reflect.Value, error) {
-	target := v.fieldValue
+	target := v.ref
 
 	toResolve := v.rawData
-	if v.isInlineMapItem {
+	if v.ref.isInlineMap {
 		// unwrap map data for resolving
 		toResolve = v.rawData.Content[1]
 	}
@@ -230,27 +253,26 @@ func handleUnresolvedField(
 	}
 
 	resolved := toResolve
-	if v.isInlineMapItem {
+	if v.ref.isInlineMap {
 		inlineMapItemCache, err = unmarshalMap(
 			yamlKey,
 			fakeMap(v.rawData.Content[0], resolved),
 			target,
 			inlineMapItemCache,
 			&keepOld,
-			opts,
 		)
 	} else {
-		err = unmarshal(yamlKey, resolved, target, nil, opts)
+		err = unmarshal(yamlKey, resolved, target, nil, nil)
 	}
 
 	if err != nil {
 		return nil, fmt.Errorf(
 			"failed to unmarshal resolved value of %q to field %q: %w",
-			yamlKey, v.fieldName, err,
+			yamlKey, target.fieldName, err,
 		)
 	}
 
-	return inlineMapItemCache, handleResolvedField(rc, depth, target)
+	return inlineMapItemCache, handleResolvedField(rc, depth, target.fieldValue)
 }
 
 func tryRender(

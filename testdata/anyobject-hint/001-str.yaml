@@ -1,3 +1,6 @@
+__@:
+  raw-str: str
+
 str@: "str"
 str-from-float@?str: 1.100
 str-from-str@?str: "bar"
@@ -23,6 +26,7 @@ tag-str-from-arr: !tag:arhat.dev/rs:?str
 tag-str-from-bool-true: !tag:arhat.dev/rs:?str true
 tag-str-from-bool-false: !tag:arhat.dev/rs:?str false
 ---
+raw-str: str
 str: "str"
 str-from-float: "1.100"
 str-from-str: bar

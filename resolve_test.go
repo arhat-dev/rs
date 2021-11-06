@@ -14,7 +14,14 @@ func TestBaseField_HasUnresolvedField(t *testing.T) {
 	f := &BaseField{}
 	assert.False(t, f.HasUnresolvedField())
 
-	_ = f.addUnresolvedField("test", "test|data", nil, "foo", reflect.Value{}, false, nil)
+	_ = f.addUnresolvedField("test", "test|data", nil,
+		&fieldRef{
+			fieldName:   "foo",
+			fieldValue:  reflect.Value{},
+			isInlineMap: false,
+		},
+		nil,
+	)
 	assert.True(t, f.HasUnresolvedField())
 }
 

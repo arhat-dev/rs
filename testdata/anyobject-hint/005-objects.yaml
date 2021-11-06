@@ -1,3 +1,8 @@
+raw-objects:
+- __@: a
+- __@: b
+- __@: c
+
 objects@: [a, b, c]
 objects-from-str@?[]obj: "[a, b, c]"
 objects-from-objects@?[]obj: [a, b, c]
@@ -6,6 +11,11 @@ tag-objects: !rs: [a, b, c]
 tag-objects-from-str: !rs:?[]obj "[a, b, c]"
 tag-objects-from-objects: !rs:?[]obj [a, b, c]
 ---
+raw-objects:
+- a
+- b
+- c
+
 objects: [a, b, c]
 objects-from-str: [a, b, c]
 objects-from-objects: [a, b, c]

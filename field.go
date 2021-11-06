@@ -31,6 +31,8 @@ type BaseField struct {
 	// key: yamlKey
 	unresolvedNormalFields   map[string]*unresolvedFieldSpec
 	unresolvedInlineMapItems map[string][]*unresolvedFieldSpec
+
+	unresolvedSelfItems []*unresolvedFieldSpec
 }
 
 func (f *BaseField) initialized() bool {
@@ -273,7 +275,12 @@ func (f *BaseField) collectInlineFields(
 }
 
 type fieldRef struct {
-	fieldName  string
+	// tagName is the first value in selected tag namespace
+	tagName string
+
+	// fieldName is the struct field name
+	fieldName string
+
 	fieldValue reflect.Value
 	base       *BaseField
 
@@ -281,10 +288,26 @@ type fieldRef struct {
 
 	// this field is only set to true for fields with
 	// `rs:"other"` struct field tag
-	isInlineMapItem bool
+	isInlineMap bool
 
 	// disable rendering suffix support
 	disableRS bool
+}
+
+func (f *fieldRef) Elem() *fieldRef {
+	return f.clone(f.fieldValue.Elem())
+}
+
+func (f *fieldRef) clone(v reflect.Value) *fieldRef {
+	return &fieldRef{
+		tagName:     f.tagName,
+		fieldName:   f.fieldName,
+		fieldValue:  v,
+		base:        f.base,
+		omitempty:   f.omitempty,
+		isInlineMap: f.isInlineMap,
+		disableRS:   f.disableRS,
+	}
 }
 
 // addField adds one field identified by its yamlKey
@@ -304,12 +327,15 @@ func (f *BaseField) addField(
 		}
 
 		f.inlineMap = &fieldRef{
+			tagName:    ts.yamlKey,
 			fieldName:  fieldName,
 			fieldValue: fieldValue,
 			base:       base,
 
-			isInlineMapItem: true,
-			disableRS:       ts.disableRS,
+			// TODO: handle omitempty for inline map in marshal
+			// omitempty:       false,
+			isInlineMap: true,
+			disableRS:   ts.disableRS,
 		}
 
 		return true
@@ -326,14 +352,15 @@ func (f *BaseField) addField(
 	}
 
 	f.normalFields[ts.yamlKey] = &fieldRef{
+		tagName:   ts.yamlKey,
 		fieldName: fieldName,
 
 		fieldValue: fieldValue,
 		base:       base,
 
-		omitempty:       ts.omitempty,
-		isInlineMapItem: false,
-		disableRS:       ts.disableRS,
+		omitempty:   ts.omitempty,
+		isInlineMap: false,
+		disableRS:   ts.disableRS,
 	}
 
 	return true
@@ -346,12 +373,30 @@ func (f *BaseField) getField(yamlKey string) *fieldRef {
 type unresolvedFieldSpec struct {
 	// fieldName is struct field name when isInlineMapItem = false
 	// otherwise it's inline map item key
-	fieldName  string
-	fieldValue reflect.Value
-	rawData    *yaml.Node
-	renderers  []*rendererSpec
+	ref *fieldRef
 
-	isInlineMapItem bool
+	rawData   *yaml.Node
+	renderers []*rendererSpec
+}
+
+// nolint:revive
+func (f *BaseField) addUnresolvedField_self(suffix string, n *yaml.Node) error {
+	f.unresolvedSelfItems = append(f.unresolvedSelfItems, &unresolvedFieldSpec{
+		ref: &fieldRef{
+			tagName:     "",
+			fieldName:   "",
+			fieldValue:  f._parentValue,
+			base:        f,
+			omitempty:   false,
+			isInlineMap: false,
+			disableRS:   false,
+		},
+
+		rawData:   n,
+		renderers: parseRenderingSuffix(suffix),
+	})
+
+	return nil
 }
 
 func (f *BaseField) addUnresolvedField(
@@ -361,9 +406,7 @@ func (f *BaseField) addUnresolvedField(
 	resolvedSuffix []*rendererSpec,
 
 	// value part
-	fieldName string,
-	fieldValue reflect.Value,
-	isInlineMapItem bool,
+	ref *fieldRef,
 	rawData *yaml.Node,
 ) error {
 	if resolvedSuffix == nil {
@@ -379,8 +422,8 @@ func (f *BaseField) addUnresolvedField(
 		}
 	}
 
-	if !isInlineMapItem {
-		f.addUnresolvedNormalField(yamlKey, resolvedSuffix, fieldName, fieldValue, rawData)
+	if !ref.isInlineMap {
+		f.addUnresolvedNormalField(yamlKey, resolvedSuffix, ref, rawData)
 		return nil
 	}
 
@@ -389,12 +432,10 @@ func (f *BaseField) addUnresolvedField(
 	}
 
 	f.unresolvedInlineMapItems[yamlKey] = append(f.unresolvedInlineMapItems[yamlKey], &unresolvedFieldSpec{
-		fieldName:  yamlKey,
-		fieldValue: f.inlineMap.fieldValue,
-		rawData:    rawData,
-		renderers:  resolvedSuffix,
+		ref: f.inlineMap,
 
-		isInlineMapItem: true,
+		rawData:   rawData,
+		renderers: resolvedSuffix,
 	})
 
 	return nil
@@ -406,8 +447,7 @@ func (f *BaseField) addUnresolvedNormalField(
 	renderers []*rendererSpec,
 
 	// value part
-	fieldName string,
-	fieldValue reflect.Value,
+	ref *fieldRef,
 	rawData *yaml.Node,
 ) {
 	if f.unresolvedNormalFields == nil {
@@ -421,12 +461,9 @@ func (f *BaseField) addUnresolvedNormalField(
 	}
 
 	f.unresolvedNormalFields[yamlKey] = &unresolvedFieldSpec{
-		fieldName:  fieldName,
-		fieldValue: fieldValue,
-		rawData:    rawData,
-		renderers:  renderers,
-
-		isInlineMapItem: false,
+		ref:       ref,
+		rawData:   rawData,
+		renderers: renderers,
 	}
 }
 

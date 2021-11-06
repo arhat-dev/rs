@@ -38,8 +38,12 @@ func TestBaseField_Inherit(t *testing.T) {
 			a: &Foo{},
 			b: func() *Foo {
 				v := Init(&Foo{}, nil).(*Foo)
-				_ = v.addUnresolvedField("data", "test", nil, "Data",
-					v._parentValue.FieldByName("Data"), false,
+				_ = v.addUnresolvedField("data", "test", nil,
+					&fieldRef{
+						tagName:    "data",
+						fieldName:  "Data",
+						fieldValue: v._parentValue.FieldByName("Data"),
+					},
 					fakeScalarNode("value-b"),
 				)
 				return v
@@ -52,16 +56,24 @@ func TestBaseField_Inherit(t *testing.T) {
 
 			a: func() *Foo {
 				v := Init(&Foo{}, nil).(*Foo)
-				_ = v.addUnresolvedField("data", "test", nil, "Data",
-					v._parentValue.FieldByName("Data"), false,
+				_ = v.addUnresolvedField("data", "test", nil,
+					&fieldRef{
+						tagName:    "data",
+						fieldName:  "Data",
+						fieldValue: v._parentValue.FieldByName("Data"),
+					},
 					fakeScalarNode("value-a"),
 				)
 				return v
 			}(),
 			b: func() *Foo {
 				v := Init(&Foo{}, nil).(*Foo)
-				_ = v.addUnresolvedField("data", "test", nil, "Data",
-					v._parentValue.FieldByName("Data"), false,
+				_ = v.addUnresolvedField("data", "test", nil,
+					&fieldRef{
+						tagName:    "data",
+						fieldName:  "Data",
+						fieldValue: v._parentValue.FieldByName("Data"),
+					},
 					fakeScalarNode("value-b"),
 				)
 				return v
@@ -75,8 +87,13 @@ func TestBaseField_Inherit(t *testing.T) {
 			a: &Foo{},
 			b: func() *Foo {
 				v := Init(&Foo{}, nil).(*Foo)
-				_ = v.addUnresolvedField("b", "test", nil, "Data",
-					v._parentValue.FieldByName("Data"), true,
+				_ = v.addUnresolvedField("b", "test", nil,
+					&fieldRef{
+						tagName:     "data",
+						fieldName:   "Data",
+						fieldValue:  v._parentValue.FieldByName("Data"),
+						isInlineMap: true,
+					},
 					fakeMap(fakeScalarNode("data"), fakeScalarNode("test-data")),
 				)
 
@@ -90,16 +107,26 @@ func TestBaseField_Inherit(t *testing.T) {
 
 			a: func() *Foo {
 				v := Init(&Foo{}, nil).(*Foo)
-				_ = v.addUnresolvedField("a", "test", nil, "Data",
-					v._parentValue.FieldByName("Data"), true,
+				_ = v.addUnresolvedField("a", "test", nil,
+					&fieldRef{
+						tagName:     "data",
+						fieldName:   "Data",
+						fieldValue:  v._parentValue.FieldByName("Data"),
+						isInlineMap: true,
+					},
 					fakeMap(fakeScalarNode("a"), fakeScalarNode("test-data")),
 				)
 				return v
 			}(),
 			b: func() *Foo {
 				v := Init(&Foo{}, nil).(*Foo)
-				_ = v.addUnresolvedField("b", "test", nil, "Data",
-					v._parentValue.FieldByName("Data"), true,
+				_ = v.addUnresolvedField("b", "test", nil,
+					&fieldRef{
+						tagName:     "data",
+						fieldName:   "Data",
+						fieldValue:  v._parentValue.FieldByName("Data"),
+						isInlineMap: true,
+					},
 					fakeMap(fakeScalarNode("b"), fakeScalarNode("test-data")),
 				)
 
@@ -119,11 +146,9 @@ func TestBaseField_Inherit(t *testing.T) {
 			if test.unresolvedNormalFieldsCount > 0 {
 				for k, v := range a.unresolvedNormalFields {
 					expectedUnresolvedFields[k] = &unresolvedFieldSpec{
-						fieldName:       v.fieldName,
-						fieldValue:      reflect.Value{},
-						rawData:         v.rawData,
-						renderers:       append([]*rendererSpec{}, v.renderers...),
-						isInlineMapItem: v.isInlineMapItem,
+						ref:       v.ref.clone(reflect.Value{}).stripBase(),
+						rawData:   v.rawData,
+						renderers: append([]*rendererSpec{}, v.renderers...),
 					}
 				}
 			} else {
@@ -138,10 +163,11 @@ func TestBaseField_Inherit(t *testing.T) {
 
 			for k, v := range a.unresolvedNormalFields {
 				// value destionation should be redirected to a
-				assert.Equal(t, a._parentValue.FieldByName("Data"), v.fieldValue)
+				assert.Equal(t, a._parentValue.FieldByName("Data"), v.ref.fieldValue)
 
 				// reset for assertion
-				a.unresolvedNormalFields[k].fieldValue = reflect.Value{}
+				a.unresolvedNormalFields[k].ref.stripBase()
+				a.unresolvedNormalFields[k].ref.fieldValue = reflect.Value{}
 			}
 
 			for k, v := range b.unresolvedNormalFields {
@@ -150,11 +176,9 @@ func TestBaseField_Inherit(t *testing.T) {
 					expectedUnresolvedFields[k].rawData = v.rawData
 				} else {
 					expectedUnresolvedFields[k] = &unresolvedFieldSpec{
-						fieldName:       v.fieldName,
-						fieldValue:      reflect.Value{},
-						rawData:         v.rawData,
-						renderers:       append([]*rendererSpec{}, v.renderers...),
-						isInlineMapItem: v.isInlineMapItem,
+						ref:       v.ref.clone(reflect.Value{}).stripBase(),
+						rawData:   v.rawData,
+						renderers: append([]*rendererSpec{}, v.renderers...),
 					}
 				}
 			}
