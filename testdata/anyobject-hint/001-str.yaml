@@ -1,5 +1,6 @@
-__@:
-  raw-str: str
+__@echo:
+  __@echo:
+    raw-str@: str
 
 str@: "str"
 str-from-float@?str: 1.100
