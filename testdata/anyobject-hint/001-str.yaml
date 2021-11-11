@@ -1,5 +1,5 @@
-__@echo:
-  __@echo:
+__@:
+  __@echo?obj:
     raw-str@: str
 
 str@: "str"

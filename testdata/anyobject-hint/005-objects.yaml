@@ -1,6 +1,6 @@
 raw-objects:
-- __@: a
-- __@: b
+- __@echo?str: a
+- __@echo: b
 - __@: c
 
 objects@: [a, b, c]

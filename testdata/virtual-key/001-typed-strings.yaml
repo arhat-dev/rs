@@ -1,0 +1,5 @@
+strings@:
+- __@echo?str: a
+---
+strings:
+- a

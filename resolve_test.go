@@ -140,3 +140,28 @@ func TestResolve_yaml_unmarshal_invalid_but_no_error(t *testing.T) {
 		t.Log(string(md))
 	}
 }
+
+func TestVirtualKeyFixtures(t *testing.T) {
+	type TestSpec struct {
+		BaseField
+
+		Strings []string `yaml:"strings"`
+	}
+
+	type CheckSpec struct {
+		Strings []string `yaml:"strings"`
+	}
+	testhelper.TestFixtures(t, "./testdata/virtual-key",
+		func() interface{} { return Init(&TestSpec{}, nil) },
+		func() interface{} { return &CheckSpec{} },
+		func(t *testing.T, in, exp interface{}) {
+			actual := in.(*TestSpec)
+			expected := exp.(*CheckSpec)
+
+			err := actual.ResolveFields(&testRenderingHandler{}, -1)
+			assert.NoError(t, err)
+
+			assert.EqualValues(t, expected.Strings, actual.Strings)
+		},
+	)
+}
