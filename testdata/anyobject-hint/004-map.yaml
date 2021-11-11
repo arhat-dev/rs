@@ -1,3 +1,8 @@
+__@:
+  __@echo:
+    raw-map:
+      foo: bar
+
 map@:
   foo:
     bar@: woo
@@ -11,6 +16,9 @@ tag-map-from-str: !rs:?obj "{foo: bar}"
 tag-map-from-map: !rs:?obj
   foo: bar
 ---
+raw-map:
+  foo: bar
+
 map:
   foo:
     bar: woo

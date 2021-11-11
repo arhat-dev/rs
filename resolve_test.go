@@ -142,26 +142,77 @@ func TestResolve_yaml_unmarshal_invalid_but_no_error(t *testing.T) {
 }
 
 func TestVirtualKeyFixtures(t *testing.T) {
+	type InlineMapObject struct {
+		BaseField
+
+		Foo string `yaml:"foo"`
+		Bar string `yaml:"bar"`
+	}
+
+	type InlineMapObjects struct {
+		BaseField
+
+		InlineMap map[string][]InlineMapObject `yaml:",inline"`
+	}
+
+	type FooIface interface{}
+
+	type InlineMapInterfaceObjects struct {
+		BaseField
+
+		InlineMap map[string][]FooIface `yaml:",inline"`
+	}
+
 	type TestSpec struct {
 		BaseField
 
 		Strings []string `yaml:"strings"`
+
+		InlineMapObjects InlineMapObjects `yaml:"inline_map_objects"`
+
+		IfaceObjects InlineMapInterfaceObjects `yaml:"inline_map_iface_objects"`
 	}
 
-	type CheckSpec struct {
-		Strings []string `yaml:"strings"`
-	}
+	// 	type CheckSpec struct {
+	// 		Strings []string `yaml:"strings"`
+	//
+	// 		InlineMapObjects struct {
+	// 			InlineMap map[string][]map[string]interface{} `yaml:",inline"`
+	// 		} `yaml:"inline_map_objects"`
+	//
+	// 		IfaceObjects struct {
+	// 			InlineMap map[string][]map[string]interface{} `yaml:",inline"`
+	// 		} `yaml:"inline_map_iface_objects"`
+	// 	}
+
 	testhelper.TestFixtures(t, "./testdata/virtual-key",
+		func() interface{} {
+			return Init(&TestSpec{}, &Options{
+				InterfaceTypeHandler: InterfaceTypeHandleFunc(
+					func(typ reflect.Type, yamlKey string) (interface{}, error) {
+						return &InlineMapObject{}, nil
+					},
+				),
+			})
+		},
 		func() interface{} { return Init(&TestSpec{}, nil) },
-		func() interface{} { return &CheckSpec{} },
 		func(t *testing.T, in, exp interface{}) {
 			actual := in.(*TestSpec)
-			expected := exp.(*CheckSpec)
+			expected := exp.(*TestSpec)
 
 			err := actual.ResolveFields(&testRenderingHandler{}, -1)
 			assert.NoError(t, err)
 
 			assert.EqualValues(t, expected.Strings, actual.Strings)
+
+			for k, list := range expected.InlineMapObjects.InlineMap {
+				for i := range list {
+					e := expected.InlineMapObjects.InlineMap[k][i]
+					a := actual.InlineMapObjects.InlineMap[k][i]
+					assert.EqualValues(t, e.Foo, a.Foo)
+					assert.EqualValues(t, e.Bar, a.Bar)
+				}
+			}
 		},
 	)
 }

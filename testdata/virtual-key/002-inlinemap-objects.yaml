@@ -1,0 +1,17 @@
+inline_map_objects:
+  # this rendering suffix is required
+  foo@:
+  - bar: Kept no matter what value we get in virtual key
+    __@!:
+      resolve: false
+      value:
+        foo@echo: bar
+        bar: bar
+
+    __@echo:
+      foo@echo: foo
+---
+inline_map_objects:
+  foo:
+  - foo: foo
+    bar: Kept no matter what value we get in virtual key

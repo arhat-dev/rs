@@ -1,0 +1,12 @@
+inline_map_iface_objects:
+  foo@:
+  - bar: foo
+    __@!:
+      resolve: false
+      value@echo:
+        foo: bar
+---
+inline_map_iface_objects:
+  foo:
+  - foo: bar
+    bar: foo
