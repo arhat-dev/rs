@@ -1,5 +1,13 @@
 strings@:
-- __@echo?str: a
+- __@echo?str: &a a
+- b
+- __@?str: c
+- __@: *a
+- *a
 ---
 strings:
+- a
+- b
+- c
+- a
 - a

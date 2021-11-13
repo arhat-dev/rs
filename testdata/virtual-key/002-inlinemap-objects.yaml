@@ -1,17 +1,69 @@
 inline_map_objects:
   # this rendering suffix is required
-  foo@:
-  - bar: Kept no matter what value we get in virtual key
+  inline_map_item_comprehensive:
+  - # Value appears before the virtual key will always be be overriden
+    # by virtual key values if there is overlapping fields.
+    b: Value NOT preserved
+
+    # When there are multiple virtual keys, the last rendered value win
+    # and if they are rendered at the same time, the last appears win
+    #
+    # in this case: `b@echo: h` has a renderer, so it will contend with
+    # `b@echo: Real Value`, but it's placed before `Real Value`, so the
+    # final value of `b` is `Real Value`
     __@!:
       resolve: false
       value:
-        foo@echo: bar
-        bar: bar
+        b@echo: h
+        # this won't override `a`
+        a: a
 
     __@echo:
-      foo@echo: foo
+      b@echo: REAL B
+
+    # this virtual key will not set b=c due to not having rendering suffix
+    # to b, even it appears at the last
+    __@echo:
+      b: c
+
+    a: REAL A
+
+  # field before virtual key
+  inline_map_item_101:
+  - a: Value always be overriden
+    __@:
+      a: REAL A
+  inline_map_item_102:
+  - a: REAL A
+    __@:
+      b: REAL B
+
+  # field after virtual key
+  inline_map_item_201:
+  - __@:
+      a: Value not overriding
+    # Value can be preserved after the virtual key if it has no rendering suffix
+    a: REAL A
+  inline_map_item_202:
+  - __@:
+      a@echo: REAL A
+    # Value won't be preserved after the virtual key if using rendering suffix
+    a: Value to be overriden
 ---
 inline_map_objects:
-  foo:
-  - foo: foo
-    bar: Kept no matter what value we get in virtual key
+  inline_map_item_comprehensive:
+  - b: REAL B
+    a: REAL A
+
+  # field before virtual key
+  inline_map_item_101:
+  - a: REAL A
+  inline_map_item_102:
+  - a: REAL A
+    b: REAL B
+
+  # field after virtual key
+  inline_map_item_201:
+  - a: REAL A
+  inline_map_item_202:
+  - a: REAL A

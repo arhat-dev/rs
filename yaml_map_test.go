@@ -28,7 +28,7 @@ bar: foo
 	n = prepareYamlNode(n)
 	assert.EqualValues(t, 8, len(n.Content))
 
-	pairs, err := unmarshalYamlMap(n)
+	pairs, err := unmarshalYamlMap(n.Content)
 	assert.NoError(t, err)
 	assert.EqualValues(t, len(pairs), 5)
 

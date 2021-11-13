@@ -2,6 +2,7 @@ package rs
 
 import (
 	"fmt"
+	"path"
 	"reflect"
 	"testing"
 
@@ -141,26 +142,49 @@ func TestResolve_yaml_unmarshal_invalid_but_no_error(t *testing.T) {
 	}
 }
 
-func TestVirtualKeyFixtures(t *testing.T) {
-	type InlineMapObject struct {
-		BaseField
+type testVirtualKeyItem struct {
+	BaseField
 
-		Foo string `yaml:"foo"`
-		Bar string `yaml:"bar"`
+	B string `yaml:"b"`
+	A string `yaml:"a"`
+
+	NestedObjects []*testVirtualKeyItem `yaml:"nested_objects"`
+}
+
+func assertTestVirtualKeyItemVisibleFields(t *testing.T, expected, actual *testVirtualKeyItem) {
+	assert.EqualValues(t, expected.B, actual.B)
+	assert.EqualValues(t, expected.A, actual.A)
+
+	for i := range actual.NestedObjects {
+		assertTestVirtualKeyItemVisibleFields(t, expected.NestedObjects[i], actual.NestedObjects[i])
 	}
+}
 
+func TestVirtualKeyFixtures(t *testing.T) {
 	type InlineMapObjects struct {
 		BaseField
 
-		InlineMap map[string][]InlineMapObject `yaml:",inline"`
+		InlineMap map[string][]*testVirtualKeyItem `yaml:",inline"`
 	}
 
 	type FooIface interface{}
 
-	type InlineMapInterfaceObjects struct {
+	type InlineMapIfaceObjects struct {
 		BaseField
 
 		InlineMap map[string][]FooIface `yaml:",inline"`
+	}
+
+	type InlineMapObject struct {
+		BaseField
+
+		InlineMap map[string]*testVirtualKeyItem `yaml:",inline"`
+	}
+
+	type InlineMapIfaceObject struct {
+		BaseField
+
+		InlineMap map[string]FooIface `yaml:",inline"`
 	}
 
 	type TestSpec struct {
@@ -168,9 +192,15 @@ func TestVirtualKeyFixtures(t *testing.T) {
 
 		Strings []string `yaml:"strings"`
 
-		InlineMapObjects InlineMapObjects `yaml:"inline_map_objects"`
+		Objects []*testVirtualKeyItem `yaml:"objects"`
 
-		IfaceObjects InlineMapInterfaceObjects `yaml:"inline_map_iface_objects"`
+		InlineMap_Objects InlineMapObjects `yaml:"inline_map_objects"`
+
+		InlineMap_IfaceObjects InlineMapIfaceObjects `yaml:"inline_map_iface_objects"`
+
+		InlineMap_Object InlineMapObject `yaml:"inline_map_object"`
+
+		InlineMap_IfaceObject InlineMapIfaceObject `yaml:"inline_map_iface_object"`
 	}
 
 	// 	type CheckSpec struct {
@@ -185,33 +215,62 @@ func TestVirtualKeyFixtures(t *testing.T) {
 	// 		} `yaml:"inline_map_iface_objects"`
 	// 	}
 
+	opts := &Options{
+		InterfaceTypeHandler: InterfaceTypeHandleFunc(
+			func(typ reflect.Type, yamlKey string) (interface{}, error) {
+				return &testVirtualKeyItem{}, nil
+			},
+		),
+	}
+
 	testhelper.TestFixtures(t, "./testdata/virtual-key",
-		func() interface{} {
-			return Init(&TestSpec{}, &Options{
-				InterfaceTypeHandler: InterfaceTypeHandleFunc(
-					func(typ reflect.Type, yamlKey string) (interface{}, error) {
-						return &InlineMapObject{}, nil
-					},
-				),
-			})
-		},
-		func() interface{} { return Init(&TestSpec{}, nil) },
+		func() interface{} { return Init(&TestSpec{}, opts) },
+		func() interface{} { return Init(&TestSpec{}, opts) },
 		func(t *testing.T, in, exp interface{}) {
 			actual := in.(*TestSpec)
 			expected := exp.(*TestSpec)
 
-			err := actual.ResolveFields(&testRenderingHandler{}, -1)
-			assert.NoError(t, err)
+			for i := 0; i < 5; i++ {
+				t.Run(fmt.Sprint(i), func(t *testing.T) {
+					name := path.Base(t.Name())
+					_ = name
+					err := actual.ResolveFields(&testRenderingHandler{}, -1)
+					assert.NoError(t, err)
+					assert.EqualValues(t, expected.Strings, actual.Strings)
 
-			assert.EqualValues(t, expected.Strings, actual.Strings)
+					for i, e := range expected.Objects {
+						a := expected.Objects[i]
+						assertTestVirtualKeyItemVisibleFields(t, e, a)
+					}
 
-			for k, list := range expected.InlineMapObjects.InlineMap {
-				for i := range list {
-					e := expected.InlineMapObjects.InlineMap[k][i]
-					a := actual.InlineMapObjects.InlineMap[k][i]
-					assert.EqualValues(t, e.Foo, a.Foo)
-					assert.EqualValues(t, e.Bar, a.Bar)
-				}
+					for k, list := range expected.InlineMap_Objects.InlineMap {
+						for i := range list {
+							e := expected.InlineMap_Objects.InlineMap[k][i]
+							a := actual.InlineMap_Objects.InlineMap[k][i]
+							assertTestVirtualKeyItemVisibleFields(t, e, a)
+						}
+					}
+
+					for k, list := range expected.InlineMap_IfaceObjects.InlineMap {
+						for i := range list {
+							e := expected.InlineMap_IfaceObjects.InlineMap[k][i].(*testVirtualKeyItem)
+							a := actual.InlineMap_IfaceObjects.InlineMap[k][i].(*testVirtualKeyItem)
+							assertTestVirtualKeyItemVisibleFields(t, e, a)
+						}
+					}
+
+					for k := range expected.InlineMap_Object.InlineMap {
+						e := expected.InlineMap_Object.InlineMap[k]
+						a := actual.InlineMap_Object.InlineMap[k]
+						assertTestVirtualKeyItemVisibleFields(t, e, a)
+					}
+
+					for k := range expected.InlineMap_IfaceObject.InlineMap {
+						e := expected.InlineMap_IfaceObject.InlineMap[k].(*testVirtualKeyItem)
+						a := actual.InlineMap_IfaceObject.InlineMap[k].(*testVirtualKeyItem)
+						assertTestVirtualKeyItemVisibleFields(t, e, a)
+					}
+				})
 			}
 		},
 	)

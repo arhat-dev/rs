@@ -51,7 +51,7 @@ non_scalar:
 	n := new(yaml.Node)
 	assert.NoError(t, yaml.Unmarshal([]byte(_input), n))
 	n = prepareYamlNode(n)
-	mkv, err := unmarshalYamlMap(n)
+	mkv, err := unmarshalYamlMap(n.Content)
 	assert.NoError(t, err)
 
 	input := make(map[string]*yaml.Node)

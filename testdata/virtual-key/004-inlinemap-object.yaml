@@ -1,0 +1,12 @@
+inline_map_object:
+  item_1:
+    a: Value to be overriden
+    __@:
+      a: REAL A
+      b: Value not overriding
+    b: REAL B
+---
+inline_map_object:
+  item_1:
+    a: REAL A
+    b: REAL B

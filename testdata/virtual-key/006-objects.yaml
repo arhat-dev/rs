@@ -1,0 +1,10 @@
+objects@:
+- a: PLAIN A
+- __@echo:
+    a: REAL A
+    b: REAL B
+---
+objects:
+- a: PLAIN A
+- a: REAL A
+  b: REAL B

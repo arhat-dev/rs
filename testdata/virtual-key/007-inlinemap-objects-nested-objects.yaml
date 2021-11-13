@@ -1,0 +1,12 @@
+inline_map_objects:
+  inline_map_item_101:
+  - nested_objects@:
+    - __@:
+        a: REAL A
+        b: REAL B
+---
+inline_map_objects:
+  inline_map_item_101:
+  - nested_objects:
+    - a: REAL A
+      b: REAL B

@@ -1,0 +1,12 @@
+inline_map_iface_object:
+  item_1:
+    a: Value to be overriden
+    __@:
+      a: REAL A
+      b@echo: REAL B
+    b: Value to be overriden
+---
+inline_map_iface_object:
+  item_1:
+    a: REAL A
+    b: REAL B
