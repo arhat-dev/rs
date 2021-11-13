@@ -22,13 +22,15 @@ func (f *BaseField) ResolveFields(rc RenderingHandler, depth int, names ...strin
 		return nil
 	}
 
-	if len(names) == 0 {
-		// resolve all
-
+	if len(f.unresolvedSelfItems) != 0 {
 		err := resolveOverlappedItems(rc, 1, "", f._parentValue, f.unresolvedSelfItems...)
 		if err != nil {
-			return err
+			return fmt.Errorf("rs: failed to resolve value from virtual key: %w", err)
 		}
+	}
+
+	if len(names) == 0 {
+		// resolve all
 
 		for name, v := range f.normalFields {
 			err := v.base.resolveNormalField(rc, depth, name, v)

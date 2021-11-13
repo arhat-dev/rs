@@ -49,6 +49,10 @@ inline_map_objects:
       a@echo: REAL A
     # Value won't be preserved after the virtual key if using rendering suffix
     a: Value to be overriden
+  inline_map_item_virtual_key_only:
+  - __@echo:
+      a: REAL A
+      b: REAL B
 ---
 inline_map_objects:
   inline_map_item_comprehensive:
@@ -67,3 +71,6 @@ inline_map_objects:
   - a: REAL A
   inline_map_item_202:
   - a: REAL A
+  inline_map_item_virtual_key_only:
+  - a: REAL A
+    b: REAL B
