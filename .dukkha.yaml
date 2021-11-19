@@ -69,6 +69,7 @@ workflow:run:
       {{- else -}}
         empty.yml
       {{- end -}}
+    continue_on_error: true
 
 golang:test:
 - name: rs
