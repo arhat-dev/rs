@@ -36,3 +36,6 @@ jobs:
             "1.17.x"
           ]
         }
+    secrets:
+      sonarqube-server-url: ${{ secrets.SONAR_HOST_URL }}
+      sonarqube-token: ${{ secrets.SONAR_TOKEN }}
