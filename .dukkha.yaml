@@ -1,11 +1,16 @@
 global:
   default_git_branch: master
+  env:
+  - name: PROFILE_DIR
+    value@tpl: |-
+      {{- filepath.Join dukkha.WorkDir "build" "test-profile" -}}
   values:
     cmd:
-      run_ctr@http:presets?str|tpl: templates/run-ctr.yml
+      run_ctr@presets?str|tpl: templates/run-ctr.yml
 
 renderers:
 - http:presets:
+    alias: presets
     cache:
       enabled: true
       timeout: 2h
@@ -26,8 +31,8 @@ tools:
       template: |-
         {{- include "golang.cmd.ctr" . -}}
       include:
-      - text@http:presets?str: templates/image/flavored-tag.tpl
-      - text@http:presets?str: golang/cmd/ctr.yml
+      - text@presets?str: templates/image/flavored-tag.tpl
+      - text@presets?str: golang/cmd/ctr.yml
       variables:
         version: "1.17"
 
@@ -48,20 +53,21 @@ workflow:run:
     include:
     - tool: [editorconfig-checker]
       config:
-      - __@http:presets#cached-file?str: tools/editorconfig-checker/config.json
+      - __@presets#cached-file?str: tools/editorconfig-checker/config.json
     - tool: [shellcheck]
     - tool: [yamllint]
       config:
-      - __@http:presets#cached-file?str: tools/yamllint/config.yaml
+      - __@presets#cached-file?str: tools/yamllint/config.yaml
     - tool: [golangci-lint]
       config:
-      - __@http:presets#cached-file?str: tools/golangci-lint/config.yaml
+      - __@presets#cached-file?str: tools/golangci-lint/config.yaml
   jobs:
-  - cmd@http:presets?str|tpl#use-spec: tools/http.tpl
+  - cmd@presets?str|tpl#use-spec: tools/presets.tpl
 
 - name: test
   jobs:
   - task: golang:test(rs, {})
+  - task: golang:test(benchmark, {})
 
 - name: report
   matrix:
@@ -69,7 +75,7 @@ workflow:run:
     - sonar-scanner
   jobs:
   # only run sonar scan on linux and darwin during CI
-  - cmd@http:presets?str|tpl#use-spec: tools/http.tpl
+  - cmd@presets?str|tpl#use-spec: tools/presets.tpl
     continue_on_error: true
 
 golang:test:
@@ -78,11 +84,7 @@ golang:test:
     template: |-
       {{- include "golang.test.pkg" . -}}
     include:
-    - text@http:presets?str: golang/test/pkg.yml
-
-  env:
-  - name: PROFILE_DIR
-    value: build/test-profile
+    - text@presets?str: golang/test/pkg.yml
   matrix:
     pkg@tpl: |-
       {{-
@@ -95,9 +97,6 @@ golang:test:
     - shell: mkdir -p ${PROFILE_DIR}
 
 - name: benchmark
-  env:
-  - name: PROFILE_DIR
-    value: build/test-profile
   matrix:
     pkg:
     - ./
@@ -109,7 +108,7 @@ golang:test:
     enabled: true
   race: true
   profile:
-    output_dir: build/test-profile
+    output_dir@env: ${PROFILE_DIR}
     coverage:
       enabled: true
     memory:
@@ -119,6 +118,6 @@ golang:test:
   benchmark:
     enabled: true
   json_output_file@tpl: |-
-    {{ .Env.PROFILE_DIR }}/result-benchmark.json
+    {{- filepath.Join env.PROFILE_DIR "result-benchmark.json" -}}
   verbose: true
   path: ./
