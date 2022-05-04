@@ -19,9 +19,9 @@ bar: foo
 <<: *other
 `
 	// editorconfig-checker-enable
-	var out interface{}
+	var out any
 	assert.NoError(t, yaml.Unmarshal([]byte(input), &out))
-	// assert.IsType(t, map[string]interface{}{}, out)
+	// assert.IsType(t, map[string]any{}, out)
 
 	n := new(yaml.Node)
 	assert.NoError(t, yaml.Unmarshal([]byte(input), n))

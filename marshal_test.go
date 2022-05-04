@@ -16,12 +16,12 @@ var (
 type marshalTestSpec struct {
 	name string
 
-	data interface{}
+	data any
 
 	inputNoRS   string
 	inputWithRS string
 
-	equivalent interface{}
+	equivalent any
 }
 
 var (
@@ -30,7 +30,7 @@ var (
 )
 
 type dataWrapper struct {
-	data interface{}
+	data any
 }
 
 func (dw *dataWrapper) ResolveFields(rc RenderingHandler, depth int, names ...string) error {
@@ -43,7 +43,7 @@ func (dw *dataWrapper) UnmarshalYAML(n *yaml.Node) error {
 	return (*BaseField).UnmarshalYAML(&bf, n)
 }
 
-func (dw *dataWrapper) MarshalYAML() (interface{}, error) {
+func (dw *dataWrapper) MarshalYAML() (any, error) {
 	bf := reflect.ValueOf(dw.data).Elem().Field(0).Interface().(BaseField)
 	return (*BaseField).MarshalYAML(&bf)
 }
@@ -199,7 +199,7 @@ func TestBaseField_MarshalYAML_primitive(t *testing.T) {
 		return ret
 	}
 
-	for _, testMajor := range []interface{}{
+	for _, testMajor := range []any{
 		string("str-value"),
 		bool(true),
 		float32(1.1), float64(1.1),
@@ -211,21 +211,21 @@ func TestBaseField_MarshalYAML_primitive(t *testing.T) {
 		// complex64(complex(float32(1.1), float32(1.1))),
 		// complex128(complex(float64(1.1), float64(1.1))),
 
-		[]interface{}{
+		[]any{
 			string("str-value"),
 			bool(true),
 			float32(1.1), float64(1.1),
 			int(1), int8(1), int16(1), int32(1), rune('D'), int64(1),
 			uint(1), byte(1), uint8(1), uint16(1), uint32(1), uint64(1), uintptr(1),
 		},
-		[...]interface{}{
+		[...]any{
 			string("str-value"),
 			bool(true),
 			float32(1.1), float64(1.1),
 			int(1), int8(1), int16(1), int32(1), rune('D'), int64(1),
 			uint(1), byte(1), uint8(1), uint16(1), uint32(1), uint64(1), uintptr(1),
 		},
-		map[string]interface{}{
+		map[string]any{
 			"string":  string("str-value"),
 			"bool":    bool(true),
 			"float32": float32(1.1),
@@ -244,7 +244,7 @@ func TestBaseField_MarshalYAML_primitive(t *testing.T) {
 			"uint64":  uint64(1),
 			"uintptr": uintptr(1),
 		},
-		map[string][]interface{}{
+		map[string][]any{
 			"foo": {
 				string("str-value"),
 				bool(true),
@@ -253,7 +253,7 @@ func TestBaseField_MarshalYAML_primitive(t *testing.T) {
 				uint(1), byte(1), uint8(1), uint16(1), uint32(1), uint64(1), uintptr(1),
 			},
 		},
-		map[string]map[string][]interface{}{
+		map[string]map[string][]any{
 			"foo": {"foo": {
 				string("str-value"),
 				bool(true),
@@ -305,7 +305,7 @@ func TestBaseField_MarshalYAML_primitive(t *testing.T) {
 
 			data := reflect.New(typeWithBaseField)
 			equivalent := reflect.New(typePlain)
-			var valueData interface{}
+			var valueData any
 			if test.value.IsValid() {
 				valueData = test.value.Interface()
 				data.Elem().Field(1).Set(test.value)
@@ -314,12 +314,12 @@ func TestBaseField_MarshalYAML_primitive(t *testing.T) {
 				valueData = nil
 			}
 
-			valueBytes, err := yaml.Marshal(map[string]interface{}{
+			valueBytes, err := yaml.Marshal(map[string]any{
 				"data": valueData,
 			})
 			assert.NoError(t, err)
 
-			rsValueBytes, err := yaml.Marshal(map[string]interface{}{
+			rsValueBytes, err := yaml.Marshal(map[string]any{
 				"data@echo": valueData,
 			})
 			assert.NoError(t, err)

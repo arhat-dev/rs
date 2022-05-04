@@ -12,24 +12,24 @@ func TestMergeMap(t *testing.T) {
 	tests := []struct {
 		name string
 
-		original   map[string]interface{}
-		additional map[string]interface{}
+		original   map[string]any
+		additional map[string]any
 		unique     bool
 
 		expectErr bool
-		expected  map[string]interface{}
+		expected  map[string]any
 	}{
 		{
 			name:       "Simple Nop",
-			original:   map[string]interface{}{"foo": "bar"},
+			original:   map[string]any{"foo": "bar"},
 			additional: nil,
-			expected:   map[string]interface{}{"foo": "bar"},
+			expected:   map[string]any{"foo": "bar"},
 		},
 		{
 			name:       "Simple Merge",
-			original:   map[string]interface{}{"foo": "bar"},
-			additional: map[string]interface{}{"foo": "bar"},
-			expected:   map[string]interface{}{"foo": "bar"},
+			original:   map[string]any{"foo": "bar"},
+			additional: map[string]any{"foo": "bar"},
+			expected:   map[string]any{"foo": "bar"},
 		},
 		// TODO: Add complex test cases
 	}
@@ -51,32 +51,32 @@ func TestMergeMap(t *testing.T) {
 }
 
 func TestUniqueList(t *testing.T) {
-	mapVal := map[string]interface{}{
+	mapVal := map[string]any{
 		"foo": "bar",
-		"bar": map[string]interface{}{
+		"bar": map[string]any{
 			"foo": "bar",
 		},
 	}
 	tests := []struct {
 		name string
 
-		input    []interface{}
-		expected []interface{}
+		input    []any
+		expected []any
 	}{
 		{
 			name:     "Simple String",
-			input:    []interface{}{"a", "c", "c", "a"},
-			expected: []interface{}{"a", "c"},
+			input:    []any{"a", "c", "c", "a"},
+			expected: []any{"a", "c"},
 		},
 		{
 			name:     "Simple Number",
-			input:    []interface{}{1, 1, 1, 1, 1},
-			expected: []interface{}{1},
+			input:    []any{1, 1, 1, 1, 1},
+			expected: []any{1},
 		},
 		{
 			name:     "Map Value",
-			input:    []interface{}{mapVal, mapVal, 1},
-			expected: []interface{}{mapVal, 1},
+			input:    []any{mapVal, mapVal, 1},
+			expected: []any{mapVal, 1},
 		},
 	}
 
@@ -87,7 +87,7 @@ func TestUniqueList(t *testing.T) {
 	}
 }
 
-func createPatchValue(t *testing.T, i interface{}) *yaml.Node {
+func createPatchValue(t *testing.T, i any) *yaml.Node {
 	data, err := yaml.Marshal(i)
 	if !assert.NoError(t, err) {
 		t.FailNow()
@@ -103,11 +103,11 @@ func createPatchValue(t *testing.T, i interface{}) *yaml.Node {
 	return ret
 }
 
-func createMergeValue(t *testing.T, i interface{}) []MergeSource {
+func createMergeValue(t *testing.T, i any) []MergeSource {
 	return []MergeSource{{Value: createPatchValue(t, i)}}
 }
 
-func createExpectedYamlValue(t *testing.T, i interface{}) string {
+func createExpectedYamlValue(t *testing.T, i any) string {
 	data, err := yaml.Marshal(i)
 	if !assert.NoError(t, err) {
 		t.FailNow()
@@ -124,14 +124,14 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 		spec PatchSpec
 
 		expectErr bool
-		expected  interface{}
+		expected  any
 	}{
 		{
 			name: "Valid Nop List Merge",
 			spec: PatchSpec{
-				Value: createPatchValue(t, []interface{}{"a", "b", "c"}),
+				Value: createPatchValue(t, []any{"a", "b", "c"}),
 			},
-			expected: []interface{}{"a", "b", "c"},
+			expected: []any{"a", "b", "c"},
 		},
 		{
 			name: "Valid List Merge Only",
@@ -139,12 +139,12 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 				Value: nil,
 				Merge: createMergeValue(t, []string{"a", "b", "c"}),
 			},
-			expected: []interface{}{"a", "b", "c"},
+			expected: []any{"a", "b", "c"},
 		},
 		{
 			name: "Invalid List Merge Type Not Match",
 			spec: PatchSpec{
-				Value: createPatchValue(t, []interface{}{"a", "b", "c"}),
+				Value: createPatchValue(t, []any{"a", "b", "c"}),
 				Merge: createMergeValue(t, "oops: not a list"),
 			},
 			expectErr: true,
@@ -152,10 +152,10 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 		{
 			name: "List Merge",
 			spec: PatchSpec{
-				Value: createPatchValue(t, []interface{}{"a", "b", "c"}),
+				Value: createPatchValue(t, []any{"a", "b", "c"}),
 				Merge: createMergeValue(t, []string{"c", "d", "e", "f"}),
 			},
-			expected: []interface{}{
+			expected: []any{
 				"a", "b", "c",
 				"c", // expected dup
 				"d", "e", "f",
@@ -164,18 +164,18 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 		{
 			name: "List Merge Unique",
 			spec: PatchSpec{
-				Value:  createPatchValue(t, []interface{}{"a", "c", "c"}),
+				Value:  createPatchValue(t, []any{"a", "c", "c"}),
 				Merge:  createMergeValue(t, []string{"c", "d", "c", "f"}),
 				Unique: true,
 			},
-			expected: []interface{}{"a", "c", "d", "f"},
+			expected: []any{"a", "c", "d", "f"},
 		},
 		{
 			name: "Valid Nop Map Merge",
 			spec: PatchSpec{
-				Value: createPatchValue(t, map[string]interface{}{"foo": "bar"}),
+				Value: createPatchValue(t, map[string]any{"foo": "bar"}),
 			},
-			expected: map[string]interface{}{"foo": "bar"},
+			expected: map[string]any{"foo": "bar"},
 		},
 		{
 			name: "Valid Map Merge Only",
@@ -185,29 +185,29 @@ func TestPatchSpec_ApplyTo(t *testing.T) {
 					"foo": "bar",
 				}),
 			},
-			expected: map[string]interface{}{"foo": "bar"},
+			expected: map[string]any{"foo": "bar"},
 		},
 		{
 			name: "Map Merge No List Append",
 			spec: PatchSpec{
-				Value: createPatchValue(t, map[string]interface{}{"a": []interface{}{"b", "c"}}),
+				Value: createPatchValue(t, map[string]any{"a": []any{"b", "c"}}),
 				Merge: createMergeValue(t, map[string][]string{
 					"a": {"a"},
 				}),
 			},
-			expected: map[string]interface{}{"a": []interface{}{"a"}},
+			expected: map[string]any{"a": []any{"a"}},
 		},
 		{
 			name: "Map Merge Append List",
 			spec: PatchSpec{
-				Value: createPatchValue(t, map[string]interface{}{"a": []interface{}{"b", "c"}}),
+				Value: createPatchValue(t, map[string]any{"a": []any{"b", "c"}}),
 				Merge: createMergeValue(t, map[string][]string{
 					"a": {"a"},
 				}),
 				MapListAppend: true,
 			},
-			expected: map[string]interface{}{
-				"a": []interface{}{"b", "c", "a"},
+			expected: map[string]any{
+				"a": []any{"b", "c", "a"},
 			},
 		},
 	}
@@ -234,11 +234,11 @@ func TestPatchSpec_unresolved(t *testing.T) {
 	type TestCase struct {
 		BaseField
 
-		Slice []interface{} `yaml:"slice"`
+		Slice []any `yaml:"slice"`
 	}
 
 	type Expected struct {
-		Slice []interface{} `yaml:"slice"`
+		Slice []any `yaml:"slice"`
 	}
 
 	assertVisibleValues := func(t *testing.T, expected *Expected, actual *TestCase) {
@@ -246,9 +246,9 @@ func TestPatchSpec_unresolved(t *testing.T) {
 	}
 
 	testhelper.TestFixtures(t, "./testdata/patch-spec-unresolved",
-		func() interface{} { return Init(&TestCase{}, nil) },
-		func() interface{} { return &Expected{} },
-		func(t *testing.T, spec, exp interface{}) {
+		func() any { return Init(&TestCase{}, nil) },
+		func() any { return &Expected{} },
+		func(t *testing.T, spec, exp any) {
 			in := spec.(*TestCase)
 			expected := exp.(*Expected)
 

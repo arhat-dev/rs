@@ -19,7 +19,7 @@ var (
 	_ json.Marshaler = (*AnyObjectMap)(nil)
 )
 
-func createExpectedJSONValue(t *testing.T, i interface{}) string {
+func createExpectedJSONValue(t *testing.T, i any) string {
 	data, err := json.Marshal(i)
 	if !assert.NoError(t, err) {
 		t.FailNow()
@@ -50,7 +50,7 @@ func TestAnyObject_NormalizedValue(t *testing.T) {
 		}
 		t.Run("normalized", func(t *testing.T) {
 			assert.Nil(t, obj.NormalizedValue())
-			assert.IsType(t, map[string]interface{}{}, obj.NormalizedValue())
+			assert.IsType(t, map[string]any{}, obj.NormalizedValue())
 		})
 		t.Run("raw", func(t *testing.T) {
 			assert.NotNil(t, obj.value())
@@ -66,7 +66,7 @@ func TestAnyObject_NormalizedValue(t *testing.T) {
 		}
 		t.Run("normalized", func(t *testing.T) {
 			assert.NotNil(t, obj.NormalizedValue())
-			assert.IsType(t, map[string]interface{}{}, obj.NormalizedValue())
+			assert.IsType(t, map[string]any{}, obj.NormalizedValue())
 		})
 		t.Run("raw", func(t *testing.T) {
 			assert.NotNil(t, obj.value())
@@ -81,7 +81,7 @@ func TestAnyObject_NormalizedValue(t *testing.T) {
 
 		t.Run("normalized", func(t *testing.T) {
 			assert.NotNil(t, obj.NormalizedValue())
-			assert.IsType(t, []interface{}{}, obj.NormalizedValue())
+			assert.IsType(t, []any{}, obj.NormalizedValue())
 		})
 		t.Run("raw", func(t *testing.T) {
 			assert.NotNil(t, obj.value())
@@ -109,7 +109,7 @@ func TestAnyObject_UnmarshalYAML(t *testing.T) {
 		name string
 
 		input    string
-		expected interface{}
+		expected any
 	}{
 		{
 			name:  "map",
@@ -167,7 +167,7 @@ func TestAnyObject(t *testing.T) {
 		expectedUnmarshaled *AnyObject
 		expectedResolved    *AnyObject
 
-		expectedEquivalent interface{}
+		expectedEquivalent any
 	}{
 		{
 			name:  "Basic Map",
@@ -259,11 +259,11 @@ func TestAnyObject(t *testing.T) {
 					}}},
 				},
 			},
-			expectedEquivalent: []interface{}{
-				map[string]interface{}{
+			expectedEquivalent: []any{
+				map[string]any{
 					"foo": []string{"a", "b"},
 				},
-				map[string]interface{}{
+				map[string]any{
 					"bar": []string{"c", "d"},
 				},
 			},
@@ -290,7 +290,7 @@ func TestAnyObject(t *testing.T) {
 					},
 				},
 			},
-			expectedEquivalent: map[string]interface{}{
+			expectedEquivalent: map[string]any{
 				"foo": map[string]string{
 					"bar": "woo",
 					"woo": "bar",
@@ -319,7 +319,7 @@ func TestAnyObject(t *testing.T) {
 					},
 				},
 			},
-			expectedEquivalent: map[string]interface{}{
+			expectedEquivalent: map[string]any{
 				"foo": map[string]string{
 					"woo": "bar",
 					"foo": "woo",

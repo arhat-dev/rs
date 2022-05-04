@@ -31,23 +31,23 @@ func TestBaseField_ResolveField(t *testing.T) {
 	type ThirdLevelInput struct {
 		BaseField
 
-		Data interface{} `yaml:"data"`
+		Data any `yaml:"data"`
 	}
 
 	type SecondLevelInput struct {
 		BaseField
 
 		L3   ThirdLevelInput `yaml:"l3"`
-		Data interface{}     `yaml:"data"`
+		Data any             `yaml:"data"`
 	}
 
 	type TopLevelInput struct {
 		BaseField
 
 		L2   SecondLevelInput `yaml:"l2"`
-		Data interface{}      `yaml:"data"`
+		Data any              `yaml:"data"`
 
-		InlineMap map[string]interface{} `yaml:",inline"`
+		InlineMap map[string]any `yaml:",inline"`
 	}
 
 	type TestCase struct {
@@ -76,9 +76,9 @@ func TestBaseField_ResolveField(t *testing.T) {
 	}
 
 	testhelper.TestFixtures(t, "./testdata/resolve",
-		func() interface{} { return Init(&TestCase{}, nil) },
-		func() interface{} { return Init(&CheckSpec{}, nil) },
-		func(t *testing.T, spec, exp interface{}) {
+		func() any { return Init(&TestCase{}, nil) },
+		func() any { return Init(&CheckSpec{}, nil) },
+		func(t *testing.T, spec, exp any) {
 			input := spec.(*TestCase)
 			expected := exp.(*CheckSpec)
 
@@ -107,7 +107,7 @@ func TestResolve_yaml_unmarshal_panic(t *testing.T) {
 	}
 
 	for _, test := range tests {
-		var out interface{}
+		var out any
 		func() {
 			defer func() {
 				rec := recover()
@@ -167,7 +167,7 @@ func TestVirtualKeyFixtures(t *testing.T) {
 		InlineMap map[string][]*testVirtualKeyItem `yaml:",inline"`
 	}
 
-	type FooIface interface{}
+	type FooIface any
 
 	type InlineMapIfaceObjects struct {
 		BaseField
@@ -207,26 +207,26 @@ func TestVirtualKeyFixtures(t *testing.T) {
 	// 		Strings []string `yaml:"strings"`
 	//
 	// 		InlineMapObjects struct {
-	// 			InlineMap map[string][]map[string]interface{} `yaml:",inline"`
+	// 			InlineMap map[string][]map[string]any `yaml:",inline"`
 	// 		} `yaml:"inline_map_objects"`
 	//
 	// 		IfaceObjects struct {
-	// 			InlineMap map[string][]map[string]interface{} `yaml:",inline"`
+	// 			InlineMap map[string][]map[string]any `yaml:",inline"`
 	// 		} `yaml:"inline_map_iface_objects"`
 	// 	}
 
 	opts := &Options{
 		InterfaceTypeHandler: InterfaceTypeHandleFunc(
-			func(typ reflect.Type, yamlKey string) (interface{}, error) {
+			func(typ reflect.Type, yamlKey string) (any, error) {
 				return &testVirtualKeyItem{}, nil
 			},
 		),
 	}
 
 	testhelper.TestFixtures(t, "./testdata/virtual-key",
-		func() interface{} { return Init(&TestSpec{}, opts) },
-		func() interface{} { return Init(&TestSpec{}, opts) },
-		func(t *testing.T, in, exp interface{}) {
+		func() any { return Init(&TestSpec{}, opts) },
+		func() any { return Init(&TestSpec{}, opts) },
+		func(t *testing.T, in, exp any) {
 			actual := in.(*TestSpec)
 			expected := exp.(*TestSpec)
 

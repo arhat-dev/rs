@@ -17,7 +17,7 @@ func TestBaseField_UnmarshalYAML_NoRS(t *testing.T) {
 		input string
 		data  Field
 
-		equivalent interface{}
+		equivalent any
 
 		allowUnknown bool
 		expectErr    bool
@@ -145,7 +145,7 @@ func TestBaseField_UnmarshalYAML_NoRS(t *testing.T) {
 
 			actualData := reflect.ValueOf(test.data).Elem().Field(1).Interface()
 
-			var expected interface{}
+			var expected any
 			if reflect.TypeOf(test.equivalent).Elem().Kind() == reflect.Struct {
 				expected = reflect.ValueOf(test.equivalent).Elem().Field(0).Interface()
 			} else {
@@ -162,12 +162,12 @@ func TestBaseField_UnmarshalYAML(t *testing.T) {
 		BaseField
 
 		StringMap map[string]string `yaml:"string_map"`
-		Array     [5]interface{}    `yaml:"array"`
+		Array     [5]any            `yaml:"array"`
 	}
 
 	type InlineDelegated struct {
 		StringMap map[string]string `yaml:"delegated_string_map"`
-		Array     [5]interface{}    `yaml:"delegated_array"`
+		Array     [5]any            `yaml:"delegated_array"`
 	}
 
 	type Foo struct {
@@ -358,7 +358,7 @@ array@echo|echo|echo: |-
 				BaseField: BaseField{},
 				InlineWithBaseField: Inline{
 					StringMap: map[string]string{"c": "e"},
-					Array:     [5]interface{}{"1", "2", "3", "4", "5"},
+					Array:     [5]any{"1", "2", "3", "4", "5"},
 				},
 			},
 			expectedUnmarshaled: &Foo{
@@ -420,7 +420,7 @@ delegated_array@echo|echo|echo: |-
 				BaseField: BaseField{},
 				InlineWithoutBaseField: InlineDelegated{
 					StringMap: map[string]string{"c": "e"},
-					Array:     [5]interface{}{"1", "2", "3", "4", "5"},
+					Array:     [5]any{"1", "2", "3", "4", "5"},
 				},
 			},
 			expectedUnmarshaled: &Foo{
@@ -593,8 +593,8 @@ ptr_map:
 			Foo string `yaml:"foo"`
 		} `yaml:"struct_ptr"`
 
-		AnyMap map[string]interface{} `yaml:"any_map"`
-		PtrMap map[string]*string     `yaml:"ptr_map"`
+		AnyMap map[string]any     `yaml:"any_map"`
+		PtrMap map[string]*string `yaml:"ptr_map"`
 	}
 
 	var (
@@ -635,7 +635,7 @@ ptr_map:
 	}
 }
 
-func fakeScalarNode(i interface{}) *yaml.Node {
+func fakeScalarNode(i any) *yaml.Node {
 	var (
 		data []byte
 		tag  string
@@ -867,8 +867,8 @@ func TestRS_Tag_Disabled(t *testing.T) {
 	type TestCase struct {
 		BaseField
 
-		Enabled  interface{} `yaml:"enabled" rs:""`
-		Disabled interface{} `yaml:"disabled" rs:"disabled"`
+		Enabled  any `yaml:"enabled" rs:""`
+		Disabled any `yaml:"disabled" rs:"disabled"`
 	}
 
 	out := Init(&TestCase{}, nil).(*TestCase)

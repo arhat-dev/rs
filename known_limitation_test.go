@@ -27,7 +27,7 @@ func TestLimitation_BuiltInMapKeyNotResolved(t *testing.T) {
 	assert.NoError(t, yaml.Unmarshal([]byte(yamlData), f))
 	assert.NoError(t, f.ResolveFields(
 		rs.RenderingHandleFunc(
-			func(renderer string, rawData interface{}) (result []byte, err error) {
+			func(renderer string, rawData any) (result []byte, err error) {
 				return yaml.Marshal(rawData)
 			},
 		), -1),
@@ -53,7 +53,7 @@ func TestLimitation_BuiltInMapKeyNotResolved(t *testing.T) {
 		assert.NoError(t, yaml.Unmarshal([]byte(yamlData), f))
 		assert.NoError(t, f.ResolveFields(
 			rs.RenderingHandleFunc(
-				func(renderer string, rawData interface{}) (result []byte, err error) {
+				func(renderer string, rawData any) (result []byte, err error) {
 					return yaml.Marshal(rawData)
 				},
 			), -1),

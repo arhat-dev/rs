@@ -9,10 +9,10 @@ import (
 )
 
 func BenchmarkMarshal_typed(b *testing.B) {
-	expected := map[string]interface{}{
+	expected := map[string]any{
 		"str":   "a",
 		"float": 10.1,
-		"map": map[string]interface{}{
+		"map": map[string]any{
 			"m": "m",
 		},
 	}
@@ -40,7 +40,7 @@ func BenchmarkMarshal_typed(b *testing.B) {
 		}
 		b.StopTimer()
 
-		actual := make(map[string]interface{})
+		actual := make(map[string]any)
 		assert.NoError(b, yaml.Unmarshal(out, &actual))
 		assert.EqualValues(b, expected, actual)
 	})
@@ -69,7 +69,7 @@ func BenchmarkMarshal_typed(b *testing.B) {
 		}
 		b.StopTimer()
 
-		actual := make(map[string]interface{})
+		actual := make(map[string]any)
 		assert.NoError(b, yaml.Unmarshal(out, &actual))
 		assert.EqualValues(b, expected, actual)
 	})
@@ -98,17 +98,17 @@ func BenchmarkMarshal_typed(b *testing.B) {
 		}
 		b.StopTimer()
 
-		actual := make(map[string]interface{})
+		actual := make(map[string]any)
 		assert.NoError(b, yaml.Unmarshal(out, &actual))
 		assert.EqualValues(b, expected, actual)
 	})
 }
 
 func BenchmarkMarshal_untyped(b *testing.B) {
-	expected := map[string]interface{}{
+	expected := map[string]any{
 		"str":   "a",
 		"float": 10.1,
-		"map": map[string]interface{}{
+		"map": map[string]any{
 			"m": "m",
 		},
 	}
@@ -129,7 +129,7 @@ func BenchmarkMarshal_untyped(b *testing.B) {
 		}
 		b.StopTimer()
 
-		actual := make(map[string]interface{})
+		actual := make(map[string]any)
 		assert.NoError(b, yaml.Unmarshal(out, &actual))
 		assert.EqualValues(b, expected, actual)
 	})
@@ -150,7 +150,7 @@ func BenchmarkMarshal_untyped(b *testing.B) {
 		}
 		b.StopTimer()
 
-		actual := make(map[string]interface{})
+		actual := make(map[string]any)
 		assert.NoError(b, yaml.Unmarshal(out, &actual))
 		assert.EqualValues(b, expected, actual)
 	})
@@ -172,7 +172,7 @@ func BenchmarkMarshal_untyped(b *testing.B) {
 		}
 		b.StopTimer()
 
-		actual := make(map[string]interface{})
+		actual := make(map[string]any)
 		assert.NoError(b, yaml.Unmarshal(out, &actual))
 		assert.EqualValues(b, expected, actual)
 	})

@@ -18,7 +18,7 @@ var _ RenderingHandler = (*testRenderingHandler)(nil)
 
 type testRenderingHandler struct{}
 
-func (h *testRenderingHandler) RenderYaml(renderer string, data interface{}) (result []byte, err error) {
+func (h *testRenderingHandler) RenderYaml(renderer string, data any) (result []byte, err error) {
 	var dataBytes []byte
 	switch vt := data.(type) {
 	case string:
@@ -55,11 +55,11 @@ func (h *testRenderingHandler) RenderYaml(renderer string, data interface{}) (re
 
 func testAnyObjectUnmarshalAndResolveByYamlSpecs(t *testing.T, specDirPath string) {
 	testhelper.TestFixtures(t, specDirPath,
-		func() interface{} { return &AnyObject{} },
-		func() interface{} { var out interface{}; return &out },
-		func(t *testing.T, spec, exp interface{}) {
+		func() any { return &AnyObject{} },
+		func() any { var out any; return &out },
+		func(t *testing.T, spec, exp any) {
 			testSrc := spec.(*AnyObject)
-			exp = *exp.(*interface{})
+			exp = *exp.(*any)
 
 			assert.NoError(t,
 				testSrc.ResolveFields(&testRenderingHandler{}, -1),
@@ -69,7 +69,7 @@ func testAnyObjectUnmarshalAndResolveByYamlSpecs(t *testing.T, specDirPath strin
 			ret, err := yaml.Marshal(&testSrc)
 			assert.NoError(t, err, "failed to marshal resolved data")
 
-			var actual interface{}
+			var actual any
 			assert.NoError(t, yaml.Unmarshal(ret, &actual), "failed to unmarshal resolved data")
 
 			assert.EqualValues(t, exp, actual)

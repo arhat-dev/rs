@@ -16,7 +16,7 @@ var (
 
 func TestInterfaceTypeHandleFunc_Create(t *testing.T) {
 	called := false
-	f := InterfaceTypeHandleFunc(func(typ reflect.Type, yamlKey string) (interface{}, error) {
+	f := InterfaceTypeHandleFunc(func(typ reflect.Type, yamlKey string) (any, error) {
 		called = true
 		assert.EqualValues(t, "test", yamlKey)
 		return nil, nil
@@ -28,7 +28,7 @@ func TestInterfaceTypeHandleFunc_Create(t *testing.T) {
 
 func TestRenderingHandler_RenderYaml(t *testing.T) {
 	called := false
-	f := RenderingHandleFunc(func(renderer string, rawData interface{}) (result []byte, err error) {
+	f := RenderingHandleFunc(func(renderer string, rawData any) (result []byte, err error) {
 		called = true
 		assert.EqualValues(t, "test", renderer)
 		assert.EqualValues(t, "rawData", rawData)
@@ -42,8 +42,8 @@ func TestRenderingHandler_RenderYaml(t *testing.T) {
 func TestNormalizeRawData(t *testing.T) {
 	for _, test := range []struct {
 		name     string
-		rawData  interface{}
-		expected interface{}
+		rawData  any
+		expected any
 	}{
 		{
 			name: "str scalar node",
@@ -65,7 +65,7 @@ func TestNormalizeRawData(t *testing.T) {
 		},
 		{
 			name: "null node",
-			rawData: func() interface{} {
+			rawData: func() any {
 				n := new(yaml.Node)
 				assert.NoError(t, yaml.Unmarshal([]byte("null"), n))
 				n = prepareYamlNode(n)

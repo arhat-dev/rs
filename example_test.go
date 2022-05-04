@@ -29,7 +29,7 @@ func ExampleBaseField_ResolveFields() {
 	err = s.ResolveFields(
 		// implement your own renderer
 		rs.RenderingHandleFunc(
-			func(renderer string, rawData interface{}) (result []byte, err error) {
+			func(renderer string, rawData any) (result []byte, err error) {
 				// usually you should have rawData normalized as golang types
 				// so you don't have to tend to low level *yaml.Node objects
 				rawData, err = rs.NormalizeRawData(rawData)
