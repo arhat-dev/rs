@@ -288,8 +288,8 @@ type fieldRef struct {
 
 	omitempty bool
 
-	// this field is only set to true for fields with
-	// `rs:"other"` struct field tag
+	// this field is only set to true for map type field with
+	// `rs:"other"` or `yaml:",inline"` struct field tag
 	isInlineMap bool
 
 	// disable rendering suffix support

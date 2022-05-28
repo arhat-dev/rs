@@ -106,8 +106,6 @@ func (o *AnyObject) UnmarshalYAML(n *yaml.Node) error {
 
 		return nil
 	case yaml.MappingNode:
-		needInit := o.kind != _mapData // was not mapping node
-
 		o.kind = _mapData
 		pairs, err := unmarshalYamlMap(n.Content)
 		if err != nil {
@@ -134,7 +132,7 @@ func (o *AnyObject) UnmarshalYAML(n *yaml.Node) error {
 		}
 
 		n.Content = content
-		if needInit {
+		if !o.mapData.initialized() {
 			_ = InitAny(&o.mapData, o._opts)
 		}
 
