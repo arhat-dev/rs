@@ -1,12 +1,41 @@
 package benchmark
 
 import (
+	"encoding/json"
 	"testing"
 
 	"arhat.dev/rs"
+	goccy_yaml "github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 )
+
+func runMarshalBenchmark[T any](
+	b *testing.B,
+	expected map[string]any,
+	data T,
+	marshal func(any) ([]byte, error),
+	unmarshal func([]byte, any) error,
+) {
+	var (
+		out []byte
+		err error
+	)
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		out, err = marshal(data)
+		if err != nil {
+			b.Log(err)
+			b.Fail()
+		}
+	}
+	b.StopTimer()
+
+	actual := make(map[string]any)
+	assert.NoError(b, unmarshal(out, &actual))
+	assert.EqualValues(b, expected, actual)
+}
 
 func BenchmarkMarshal_typed(b *testing.B) {
 	expected := map[string]any{
@@ -16,91 +45,57 @@ func BenchmarkMarshal_typed(b *testing.B) {
 			"m": "m",
 		},
 	}
-	b.Run("go-yaml", func(b *testing.B) {
-		f := &PlainFoo{
+
+	b.Run("json", func(b *testing.B) {
+		runMarshalBenchmark(b, expected, &PlainFoo{
 			Str:   "a",
 			Float: 10.1,
-			Bar: struct{ Map map[string]string }{
+			Bar: Bar{
 				Map: map[string]string{"m": "m"},
 			},
-		}
-
-		b.ResetTimer()
-
-		var (
-			out []byte
-			err error
+		},
+			json.Marshal,
+			json.Unmarshal,
 		)
-		for i := 0; i < b.N; i++ {
-			out, err = yaml.Marshal(f)
-			if err != nil {
-				b.Log(err)
-				b.Fail()
-			}
-		}
-		b.StopTimer()
+	})
 
-		actual := make(map[string]any)
-		assert.NoError(b, yaml.Unmarshal(out, &actual))
-		assert.EqualValues(b, expected, actual)
+	b.Run("go-yaml", func(b *testing.B) {
+		runMarshalBenchmark(b, expected, &PlainFoo{
+			Str:   "a",
+			Float: 10.1,
+			Bar: Bar{
+				Map: map[string]string{"m": "m"},
+			},
+		},
+			yaml.Marshal,
+			yaml.Unmarshal,
+		)
 	})
 
 	b.Run("goccy-yaml", func(b *testing.B) {
-		f := &PlainFoo{
+		runMarshalBenchmark(b, expected, &PlainFoo{
 			Str:   "a",
 			Float: 10.1,
-			Bar: struct{ Map map[string]string }{
+			Bar: Bar{
 				Map: map[string]string{"m": "m"},
 			},
-		}
-
-		b.ResetTimer()
-
-		var (
-			out []byte
-			err error
+		},
+			goccy_yaml.Marshal,
+			goccy_yaml.Unmarshal,
 		)
-		for i := 0; i < b.N; i++ {
-			out, err = yaml.Marshal(f)
-			if err != nil {
-				b.Log(err)
-				b.Fail()
-			}
-		}
-		b.StopTimer()
-
-		actual := make(map[string]any)
-		assert.NoError(b, yaml.Unmarshal(out, &actual))
-		assert.EqualValues(b, expected, actual)
 	})
 
 	b.Run("rs", func(b *testing.B) {
-		f := rs.Init(&FieldFoo{
+		runMarshalBenchmark(b, expected, rs.Init(&FieldFoo{
 			Str:   "a",
 			Float: 10.1,
-			Bar: struct{ Map map[string]string }{
+			Bar: Bar{
 				Map: map[string]string{"m": "m"},
 			},
-		}, &rs.Options{AllowUnknownFields: true})
-
-		b.ResetTimer()
-
-		var (
-			out []byte
-			err error
+		}, &rs.Options{AllowUnknownFields: true}),
+			yaml.Marshal,
+			yaml.Unmarshal,
 		)
-		for i := 0; i < b.N; i++ {
-			out, err = yaml.Marshal(f)
-			if err != nil {
-				b.Log(err)
-				b.Fail()
-			}
-		}
-		b.StopTimer()
-
-		actual := make(map[string]any)
-		assert.NoError(b, yaml.Unmarshal(out, &actual))
-		assert.EqualValues(b, expected, actual)
 	})
 }
 
@@ -113,46 +108,14 @@ func BenchmarkMarshal_untyped(b *testing.B) {
 		},
 	}
 
-	b.Run("go-yaml", func(b *testing.B) {
-		b.ResetTimer()
-
-		var (
-			out []byte
-			err error
-		)
-		for i := 0; i < b.N; i++ {
-			out, err = yaml.Marshal(expected)
-			if err != nil {
-				b.Log(err)
-				b.Fail()
-			}
-		}
-		b.StopTimer()
-
-		actual := make(map[string]any)
-		assert.NoError(b, yaml.Unmarshal(out, &actual))
-		assert.EqualValues(b, expected, actual)
+	b.Run("json", func(b *testing.B) {
+		runMarshalBenchmark(b, expected, expected, json.Marshal, json.Unmarshal)
 	})
-
+	b.Run("go-yaml", func(b *testing.B) {
+		runMarshalBenchmark(b, expected, expected, yaml.Marshal, yaml.Unmarshal)
+	})
 	b.Run("goccy-yaml", func(b *testing.B) {
-		b.ResetTimer()
-
-		var (
-			out []byte
-			err error
-		)
-		for i := 0; i < b.N; i++ {
-			out, err = yaml.Marshal(expected)
-			if err != nil {
-				b.Log(err)
-				b.Fail()
-			}
-		}
-		b.StopTimer()
-
-		actual := make(map[string]any)
-		assert.NoError(b, yaml.Unmarshal(out, &actual))
-		assert.EqualValues(b, expected, actual)
+		runMarshalBenchmark(b, expected, expected, goccy_yaml.Marshal, goccy_yaml.Unmarshal)
 	})
 
 	b.Run("rs", func(b *testing.B) {
@@ -161,19 +124,6 @@ func BenchmarkMarshal_untyped(b *testing.B) {
 		assert.NoError(b, err)
 		assert.NoError(b, yaml.Unmarshal(out, f))
 
-		b.ResetTimer()
-
-		for i := 0; i < b.N; i++ {
-			out, err = yaml.Marshal(f)
-			if err != nil {
-				b.Log(err)
-				b.Fail()
-			}
-		}
-		b.StopTimer()
-
-		actual := make(map[string]any)
-		assert.NoError(b, yaml.Unmarshal(out, &actual))
-		assert.EqualValues(b, expected, actual)
+		runMarshalBenchmark(b, expected, f, yaml.Marshal, yaml.Unmarshal)
 	})
 }

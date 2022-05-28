@@ -7,30 +7,68 @@ import (
 	"path/filepath"
 	"testing"
 
+	"arhat.dev/pkg/stringhelper"
 	"arhat.dev/rs"
 	goccy_yaml "github.com/goccy/go-yaml"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 )
 
-type PlainFoo struct {
-	Str   string
-	Float float64
+func runUnmarshalBenchmarkPlain(b *testing.B, src []byte, unmarshal func([]byte, any) error) {
+	var (
+		f   PlainFoo
+		err error
+	)
 
-	Bar struct {
-		Map map[string]string
-	} `yaml:",inline"`
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if err = yaml.Unmarshal(src, &f); err != nil {
+			b.Log(err)
+			b.Fail()
+		}
+
+		if f.Str != "a" || f.Float != 10.1 || f.Bar.Map["m"] != "m" {
+			b.Fail()
+		}
+	}
 }
 
-type FieldFoo struct {
-	rs.BaseField
+func runUnmarshalBenchmarkField(b *testing.B, src []byte, unmarshal func([]byte, any) error) {
+	var (
+		f   FieldFoo
+		err error
+	)
 
-	Str   string
-	Float float64
+	rc := rs.RenderingHandleFunc(func(renderer string, rawData any) (result []byte, err error) {
+		nr, err := rs.NormalizeRawData(rawData)
+		switch t := nr.(type) {
+		case string:
+			return stringhelper.ToBytes[byte, byte](t), nil
+		case []byte:
+			return t, nil
+		default:
+			return yaml.Marshal(t)
+		}
+	})
 
-	Bar struct {
-		Map map[string]string
-	} `yaml:",inline"`
+	_ = rs.Init(&f, &rs.Options{AllowUnknownFields: true})
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		if err = yaml.Unmarshal(src, &f); err != nil {
+			b.Log(err)
+			b.Fail()
+		}
+
+		if err = f.ResolveFields(rc, -1); err != nil {
+			b.Log(err)
+			b.Fail()
+		}
+
+		if f.Str != "a" || f.Float != 10.1 || f.Bar.Map["m"] != "m" {
+			b.Fail()
+		}
+	}
 }
 
 func BenchmarkUnmarshal_typed(b *testing.B) {
@@ -38,66 +76,20 @@ func BenchmarkUnmarshal_typed(b *testing.B) {
 	srcAllRS := []byte(`{ str@echo: a, float@echo: 10.1, map@echo: { m: m } }`)
 
 	b.Run("go-yaml", func(b *testing.B) {
-		f := &PlainFoo{}
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			if err := yaml.Unmarshal(srcNoRS, f); err != nil {
-				b.Log(err)
-				b.Fail()
-			}
-
-			if f.Str != "a" || f.Float != 10.1 || f.Bar.Map["m"] != "m" {
-				b.Fail()
-			}
-		}
+		runUnmarshalBenchmarkPlain(b, srcNoRS, yaml.Unmarshal)
 	})
 
 	b.Run("goccy-yaml", func(b *testing.B) {
-		f := &PlainFoo{}
-		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
-			if err := goccy_yaml.Unmarshal(srcNoRS, f); err != nil {
-				b.Log(err)
-				b.Fail()
-			}
-
-			if f.Str != "a" || f.Float != 10.1 || f.Bar.Map["m"] != "m" {
-				b.Fail()
-			}
-		}
+		runUnmarshalBenchmarkPlain(b, srcNoRS, goccy_yaml.Unmarshal)
 	})
 
 	b.Run("rs", func(b *testing.B) {
-
 		b.Run("no-suffix", func(b *testing.B) {
-			f := rs.Init(&FieldFoo{}, &rs.Options{AllowUnknownFields: true})
-
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				if err := yaml.Unmarshal(srcNoRS, f); err != nil {
-					b.Log(err)
-					b.Fail()
-				}
-
-				if f.Str != "a" || f.Float != 10.1 || f.Bar.Map["m"] != "m" {
-					b.Fail()
-				}
-			}
+			runUnmarshalBenchmarkField(b, srcNoRS, yaml.Unmarshal)
 		})
 
 		b.Run("all-suffix", func(b *testing.B) {
-			f := rs.Init(&FieldFoo{}, &rs.Options{AllowUnknownFields: true})
-			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
-				if err := yaml.Unmarshal(srcAllRS, f); err != nil {
-					b.Log(err)
-					b.Fail()
-				}
-
-				if f.Str != "" || f.Float != 0 || f.Bar.Map["m"] != "" {
-					b.Fail()
-				}
-			}
+			runUnmarshalBenchmarkField(b, srcAllRS, yaml.Unmarshal)
 		})
 	})
 }
