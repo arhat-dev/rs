@@ -258,18 +258,22 @@ func unmarshal(
 		// it should be able to handle virtual key on its own
 		!out.isInlineMap {
 
-		pairs, err := unmarshalYamlMap(in.Content)
+		var pairs []*[2]*yaml.Node
+		pairs, err = unmarshalYamlMap(in.Content)
 		if err != nil {
-			return fmt.Errorf("invalid mapping node: %w", err)
+			err = fmt.Errorf("invalid mapping node: %w", err)
+			return
 		}
 
 		// TODO: merge multiple virtual values into one
 		var (
 			content []*yaml.Node
+			suffix  string
+			ufs     unresolvedFieldSpec
 		)
 
 		for _, pair := range pairs {
-			suffix := strings.TrimPrefix(pair[0].Value, "__@")
+			suffix = strings.TrimPrefix(pair[0].Value, "__@")
 
 			if suffix == pair[0].Value {
 				content = append(content, pair[:]...)
@@ -282,7 +286,7 @@ func unmarshal(
 				)
 			}
 
-			ufs := unresolvedFieldSpec{
+			ufs = unresolvedFieldSpec{
 				ref:       out,
 				rawData:   pair[1],
 				renderers: parseRenderingSuffix(suffix),
