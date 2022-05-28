@@ -291,7 +291,7 @@ func TestBaseField_MarshalYAML_primitive(t *testing.T) {
 			typeWithBaseField := reflect.StructOf([]reflect.StructField{
 				{
 					Name:      "BaseField",
-					Type:      baseFieldStructType,
+					Type:      typeStruct_BaseField,
 					Tag:       `yaml:"-"`,
 					Anonymous: true,
 				},

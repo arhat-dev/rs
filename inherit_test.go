@@ -7,6 +7,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
+func (f fieldRef) stripBase() *fieldRef {
+	f.base = nil
+	return &f
+}
+
 func TestBaseField_Inherit(t *testing.T) {
 	type Foo struct {
 		BaseField
@@ -38,13 +43,14 @@ func TestBaseField_Inherit(t *testing.T) {
 			a: &Foo{},
 			b: func() *Foo {
 				v := Init(&Foo{}, nil)
-				_ = v.addUnresolvedField("data", "test", nil,
+				_ = v.addUnresolvedField(
 					&fieldRef{
 						tagName:    "data",
 						fieldName:  "Data",
 						fieldValue: v._parentValue.FieldByName("Data"),
 					},
 					fakeScalarNode("value-b"),
+					"data", "test", nil,
 				)
 				return v
 			}(),
@@ -56,25 +62,27 @@ func TestBaseField_Inherit(t *testing.T) {
 
 			a: func() *Foo {
 				v := Init(&Foo{}, nil)
-				_ = v.addUnresolvedField("data", "test", nil,
+				_ = v.addUnresolvedField(
 					&fieldRef{
 						tagName:    "data",
 						fieldName:  "Data",
 						fieldValue: v._parentValue.FieldByName("Data"),
 					},
 					fakeScalarNode("value-a"),
+					"data", "test", nil,
 				)
 				return v
 			}(),
 			b: func() *Foo {
 				v := Init(&Foo{}, nil)
-				_ = v.addUnresolvedField("data", "test", nil,
+				_ = v.addUnresolvedField(
 					&fieldRef{
 						tagName:    "data",
 						fieldName:  "Data",
 						fieldValue: v._parentValue.FieldByName("Data"),
 					},
 					fakeScalarNode("value-b"),
+					"data", "test", nil,
 				)
 				return v
 			}(),
@@ -87,14 +95,15 @@ func TestBaseField_Inherit(t *testing.T) {
 			a: &Foo{},
 			b: func() *Foo {
 				v := Init(&Foo{}, nil)
-				_ = v.addUnresolvedField("b", "test", nil,
+				_ = v.addUnresolvedField(
 					&fieldRef{
 						tagName:     "data",
 						fieldName:   "Data",
 						fieldValue:  v._parentValue.FieldByName("Data"),
 						isInlineMap: true,
 					},
-					fakeMap(fakeScalarNode("data"), fakeScalarNode("test-data")),
+					fakeMapPtr(fakeScalarNode("data"), fakeScalarNode("test-data")),
+					"b", "test", nil,
 				)
 
 				return v
@@ -107,27 +116,29 @@ func TestBaseField_Inherit(t *testing.T) {
 
 			a: func() *Foo {
 				v := Init(&Foo{}, nil)
-				_ = v.addUnresolvedField("a", "test", nil,
+				_ = v.addUnresolvedField(
 					&fieldRef{
 						tagName:     "data",
 						fieldName:   "Data",
 						fieldValue:  v._parentValue.FieldByName("Data"),
 						isInlineMap: true,
 					},
-					fakeMap(fakeScalarNode("a"), fakeScalarNode("test-data")),
+					fakeMapPtr(fakeScalarNode("a"), fakeScalarNode("test-data")),
+					"a", "test", nil,
 				)
 				return v
 			}(),
 			b: func() *Foo {
 				v := Init(&Foo{}, nil)
-				_ = v.addUnresolvedField("b", "test", nil,
+				_ = v.addUnresolvedField(
 					&fieldRef{
 						tagName:     "data",
 						fieldName:   "Data",
 						fieldValue:  v._parentValue.FieldByName("Data"),
 						isInlineMap: true,
 					},
-					fakeMap(fakeScalarNode("b"), fakeScalarNode("test-data")),
+					fakeMapPtr(fakeScalarNode("b"), fakeScalarNode("test-data")),
+					"b", "test", nil,
 				)
 
 				return v
@@ -166,8 +177,10 @@ func TestBaseField_Inherit(t *testing.T) {
 				assert.Equal(t, a._parentValue.FieldByName("Data"), v.ref.fieldValue)
 
 				// reset for assertion
-				a.unresolvedNormalFields[k].ref.stripBase()
-				a.unresolvedNormalFields[k].ref.fieldValue = reflect.Value{}
+				s := a.unresolvedNormalFields[k]
+				s.ref = s.ref.stripBase()
+				s.ref.fieldValue = reflect.Value{}
+				a.unresolvedNormalFields[k] = s
 			}
 
 			for k, v := range b.unresolvedNormalFields {

@@ -7,6 +7,12 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
+func fakeMapPtr(k, v *yaml.Node) *yaml.Node {
+	var fm yaml.Node
+	fakeMap(&fm, k, v)
+	return &fm
+}
+
 func TestIsEmpty(t *testing.T) {
 	for _, test := range []struct {
 		input string
