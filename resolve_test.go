@@ -96,32 +96,6 @@ func TestBaseField_ResolveField(t *testing.T) {
 	)
 }
 
-// TODO: remove this test once upstream issue solved
-//
-// issue: https://github.com/go-yaml/yaml/issues/665
-func TestResolve_yaml_unmarshal_panic(t *testing.T) {
-	tests := []struct {
-		dataBytes string
-	}{
-		{"#\n- C\nD\n"},
-	}
-
-	for _, test := range tests {
-		var out any
-		func() {
-			defer func() {
-				rec := recover()
-				assert.NotNil(t, rec)
-			}()
-
-			err := yaml.Unmarshal([]byte(test.dataBytes), &out)
-			assert.Error(t, fmt.Errorf("unreachable code: %w", err))
-		}()
-
-		assert.Equal(t, test.dataBytes, assumeValidYaml([]byte(test.dataBytes)).Value)
-	}
-}
-
 func TestResolve_yaml_unmarshal_invalid_but_no_error(t *testing.T) {
 	tests := []struct {
 		dataBytes string

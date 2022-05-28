@@ -252,7 +252,7 @@ func TestPatchSpec_unresolved(t *testing.T) {
 			in := spec.(*TestCase)
 			expected := exp.(*Expected)
 
-			assert.NoError(t, in.ResolveFields(&testRenderingHandler{}, -1))
+			assert.NoError(t, in.ResolveFields(testRenderingHandler{}, -1))
 			assertVisibleValues(t, expected, in)
 		},
 	)

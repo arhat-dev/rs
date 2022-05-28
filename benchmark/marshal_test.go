@@ -81,7 +81,7 @@ func BenchmarkMarshal_typed(b *testing.B) {
 			Bar: struct{ Map map[string]string }{
 				Map: map[string]string{"m": "m"},
 			},
-		}, &rs.Options{AllowUnknownFields: true}).(*FieldFoo)
+		}, &rs.Options{AllowUnknownFields: true})
 
 		b.ResetTimer()
 
@@ -156,7 +156,7 @@ func BenchmarkMarshal_untyped(b *testing.B) {
 	})
 
 	b.Run("rs", func(b *testing.B) {
-		f := rs.Init(&rs.AnyObjectMap{}, &rs.Options{AllowUnknownFields: true}).(*rs.AnyObjectMap)
+		f := rs.Init(&rs.AnyObjectMap{}, &rs.Options{AllowUnknownFields: true})
 		out, err := yaml.Marshal(expected)
 		assert.NoError(b, err)
 		assert.NoError(b, yaml.Unmarshal(out, f))

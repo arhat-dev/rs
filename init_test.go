@@ -35,7 +35,6 @@ func TestInit(t *testing.T) {
 		panicOnInit bool
 
 		getBaseFieldParentValue func() reflect.Value
-		getBaseFieldParentType  func() reflect.Type
 
 		setDirectFoo          func(v string)
 		getBaseFieldParentFoo func() string
@@ -45,9 +44,6 @@ func TestInit(t *testing.T) {
 			targetType: fStruct,
 			getBaseFieldParentValue: func() reflect.Value {
 				return fStruct.BaseField._parentValue
-			},
-			getBaseFieldParentType: func() reflect.Type {
-				return fStruct._parentType
 			},
 			setDirectFoo: func(v string) {
 				fStruct.Foo = v
@@ -66,9 +62,6 @@ func TestInit(t *testing.T) {
 			targetType: fPtr2,
 			getBaseFieldParentValue: func() reflect.Value {
 				return fPtr2.BaseField._parentValue
-			},
-			getBaseFieldParentType: func() reflect.Type {
-				return fPtr2.BaseField._parentType
 			},
 			setDirectFoo: func(v string) {
 				fPtr2.Foo = v
@@ -95,7 +88,6 @@ func TestInit(t *testing.T) {
 
 			_ = Init(test.targetType, nil)
 
-			assert.Equal(t, test.getBaseFieldParentValue().Type(), test.getBaseFieldParentType())
 			assert.Equal(t, reflect.Struct, test.getBaseFieldParentValue().Kind())
 
 			test.setDirectFoo("newValue")

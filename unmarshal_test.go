@@ -239,7 +239,7 @@ bool_ptr: null
 			expectedResolved: &Foo{Str: "bar-test"},
 			expectedUnmarshaled: &Foo{
 				BaseField: BaseField{
-					unresolvedNormalFields: map[string]*unresolvedFieldSpec{
+					unresolvedNormalFields: map[string]unresolvedFieldSpec{
 						"str": {
 							ref: &fieldRef{
 								tagName:    "str",
@@ -247,7 +247,7 @@ bool_ptr: null
 								fieldValue: reflect.Value{},
 							},
 							rawData:   fakeScalarNode("bar"),
-							renderers: []*rendererSpec{{name: "add-suffix-test"}},
+							renderers: []rendererSpec{{name: "add-suffix-test"}},
 						},
 					},
 				},
@@ -265,7 +265,7 @@ bool_ptr: null
 			},
 			expectedUnmarshaled: &Foo{
 				BaseField: BaseField{
-					unresolvedInlineMapItems: map[string][]*unresolvedFieldSpec{
+					unresolvedInlineMapItems: map[string][]unresolvedFieldSpec{
 						"other": {
 							{
 								ref: &fieldRef{
@@ -275,7 +275,7 @@ bool_ptr: null
 									isInlineMap: true,
 								},
 								rawData:   fakeMap(fakeScalarNode("other"), fakeScalarNode("foo")),
-								renderers: []*rendererSpec{{name: "echo"}},
+								renderers: []rendererSpec{{name: "echo"}},
 							},
 							{
 								ref: &fieldRef{
@@ -285,7 +285,7 @@ bool_ptr: null
 									isInlineMap: true,
 								},
 								rawData:   fakeMap(fakeScalarNode("other"), fakeScalarNode("bar")),
-								renderers: []*rendererSpec{{name: "echo"}},
+								renderers: []rendererSpec{{name: "echo"}},
 							},
 						},
 					},
@@ -309,8 +309,8 @@ bool_ptr: null
 					// 	"other_field_1": {},
 					// 	"other_field_2": {},
 					// },
-					// unresolvedNormalFields: map[string]*unresolvedFieldSpec{},
-					unresolvedInlineMapItems: map[string][]*unresolvedFieldSpec{
+					// unresolvedNormalFields: map[string]unresolvedFieldSpec{},
+					unresolvedInlineMapItems: map[string][]unresolvedFieldSpec{
 						"other_field_1": {{
 							ref: &fieldRef{
 								tagName:     "other",
@@ -319,7 +319,7 @@ bool_ptr: null
 								isInlineMap: true,
 							},
 							rawData:   fakeMap(fakeScalarNode("other_field_1"), fakeScalarNode("foo")),
-							renderers: []*rendererSpec{{name: "echo"}},
+							renderers: []rendererSpec{{name: "echo"}},
 						}},
 						"other_field_2": {{
 							ref: &fieldRef{
@@ -329,7 +329,7 @@ bool_ptr: null
 								isInlineMap: true,
 							},
 							rawData:   fakeMap(fakeScalarNode("other_field_2"), fakeScalarNode("bar")),
-							renderers: []*rendererSpec{{name: "add-suffix-test"}},
+							renderers: []rendererSpec{{name: "add-suffix-test"}},
 						}},
 					},
 				},
@@ -365,7 +365,7 @@ array@echo|echo|echo: |-
 				BaseField: BaseField{},
 				InlineWithBaseField: Inline{
 					BaseField: BaseField{
-						unresolvedNormalFields: map[string]*unresolvedFieldSpec{
+						unresolvedNormalFields: map[string]unresolvedFieldSpec{
 							"string_map": {
 								ref: &fieldRef{
 									tagName:    "string_map",
@@ -373,7 +373,7 @@ array@echo|echo|echo: |-
 									fieldValue: reflect.Value{},
 								},
 								rawData: fakeScalarNode("c: e"),
-								renderers: []*rendererSpec{
+								renderers: []rendererSpec{
 									{name: "echo"},
 									{name: "echo"},
 								},
@@ -389,7 +389,7 @@ array@echo|echo|echo: |-
 - "3"
 - "4"
 - '5'`),
-								renderers: []*rendererSpec{
+								renderers: []rendererSpec{
 									{name: "echo"},
 									{name: "echo"},
 									{name: "echo"},
@@ -425,7 +425,7 @@ delegated_array@echo|echo|echo: |-
 			},
 			expectedUnmarshaled: &Foo{
 				BaseField: BaseField{
-					unresolvedNormalFields: map[string]*unresolvedFieldSpec{
+					unresolvedNormalFields: map[string]unresolvedFieldSpec{
 						"delegated_string_map": {
 							ref: &fieldRef{
 								tagName:    "delegated_string_map",
@@ -433,7 +433,7 @@ delegated_array@echo|echo|echo: |-
 								fieldValue: reflect.Value{},
 							},
 							rawData: fakeScalarNode("c: e"),
-							renderers: []*rendererSpec{
+							renderers: []rendererSpec{
 								{name: "echo"},
 								{name: "echo"},
 							},
@@ -449,7 +449,7 @@ delegated_array@echo|echo|echo: |-
 - "3"
 - "4"
 - '5'`),
-							renderers: []*rendererSpec{
+							renderers: []rendererSpec{
 								{name: "echo"},
 								{name: "echo"},
 								{name: "echo"},
@@ -464,7 +464,7 @@ delegated_array@echo|echo|echo: |-
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Run("unmarshal", func(t *testing.T) {
-				out := Init(&Foo{}, nil).(*Foo)
+				out := Init(&Foo{}, nil)
 				assert.EqualValues(t, 1, out._initialized)
 
 				err := yaml.Unmarshal([]byte(test.yaml), out)
@@ -497,7 +497,7 @@ delegated_array@echo|echo|echo: |-
 			}
 
 			t.Run("resolve", func(t *testing.T) {
-				out := Init(&Foo{}, nil).(*Foo)
+				out := Init(&Foo{}, nil)
 				assert.EqualValues(t, 1, out._initialized)
 
 				if !assert.NoError(t, yaml.Unmarshal([]byte(test.yaml), out)) {
@@ -684,7 +684,6 @@ func cleanupBaseField(t *testing.T, f *BaseField) {
 
 	f._initialized = 0
 	f._parentValue = reflect.Value{}
-	f._parentType = nil
 	f.normalFields = nil
 	f.inlineMap = nil
 	for k := range f.unresolvedNormalFields {
@@ -718,7 +717,7 @@ func TestBaseField_UnmarshalYAML_Mixed_CatchOther(t *testing.T) {
 		Data map[string][]string `rs:"other"`
 	}
 
-	a := Init(&Foo{}, nil).(*Foo)
+	a := Init(&Foo{}, nil)
 	assert.NoError(t, yaml.Unmarshal([]byte(`{ a: [a], b@echo: [b], c: [c], b@echo: [x] }`), a))
 	assert.EqualValues(t, map[string][]string{
 		"a": {"a"},
@@ -755,13 +754,13 @@ func TestBaseField_UnmarshalYAML_Init(t *testing.T) {
 			Foo Inner `yaml:"foo"`
 		}
 
-		out := Init(&T{}, nil).(*T)
+		out := Init(&T{}, nil)
 
 		assert.NoError(t, yaml.Unmarshal([]byte(`foo: { foo: bar }`), out))
 		assert.Equal(t, "bar", out.Foo.Foo)
 		assert.EqualValues(t, 1, out.Foo.BaseField._initialized)
 
-		out = Init(&T{}, nil).(*T)
+		out = Init(&T{}, nil)
 
 		assert.NoError(t, yaml.Unmarshal([]byte(`foo@echo: { foo: rendered-bar }`), out))
 		assert.Equal(t, "", out.Foo.Foo)
@@ -781,13 +780,13 @@ func TestBaseField_UnmarshalYAML_Init(t *testing.T) {
 			Foo Inner `yaml:",inline"`
 		}
 
-		out := Init(&T{}, nil).(*T)
+		out := Init(&T{}, nil)
 
 		assert.NoError(t, yaml.Unmarshal([]byte(`foo: bar`), out))
 		assert.Equal(t, "bar", out.Foo.Foo)
 		assert.EqualValues(t, 1, out.Foo.BaseField._initialized)
 
-		out = Init(&T{}, nil).(*T)
+		out = Init(&T{}, nil)
 
 		assert.NoError(t, yaml.Unmarshal([]byte(`foo@echo: { foo: rendered-bar }`), out))
 		assert.Equal(t, "", out.Foo.Foo)
@@ -871,7 +870,7 @@ func TestRS_Tag_Disabled(t *testing.T) {
 		Disabled any `yaml:"disabled" rs:"disabled"`
 	}
 
-	out := Init(&TestCase{}, nil).(*TestCase)
+	out := Init(&TestCase{}, nil)
 	t.Run("Good", func(t *testing.T) {
 		assert.NoError(t, yaml.Unmarshal([]byte(`{ enabled@foo: foo, disabled: ok }`), out))
 	})

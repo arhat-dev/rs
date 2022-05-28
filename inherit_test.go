@@ -37,7 +37,7 @@ func TestBaseField_Inherit(t *testing.T) {
 
 			a: &Foo{},
 			b: func() *Foo {
-				v := Init(&Foo{}, nil).(*Foo)
+				v := Init(&Foo{}, nil)
 				_ = v.addUnresolvedField("data", "test", nil,
 					&fieldRef{
 						tagName:    "data",
@@ -55,7 +55,7 @@ func TestBaseField_Inherit(t *testing.T) {
 			name: "Some Inherit Some",
 
 			a: func() *Foo {
-				v := Init(&Foo{}, nil).(*Foo)
+				v := Init(&Foo{}, nil)
 				_ = v.addUnresolvedField("data", "test", nil,
 					&fieldRef{
 						tagName:    "data",
@@ -67,7 +67,7 @@ func TestBaseField_Inherit(t *testing.T) {
 				return v
 			}(),
 			b: func() *Foo {
-				v := Init(&Foo{}, nil).(*Foo)
+				v := Init(&Foo{}, nil)
 				_ = v.addUnresolvedField("data", "test", nil,
 					&fieldRef{
 						tagName:    "data",
@@ -86,7 +86,7 @@ func TestBaseField_Inherit(t *testing.T) {
 
 			a: &Foo{},
 			b: func() *Foo {
-				v := Init(&Foo{}, nil).(*Foo)
+				v := Init(&Foo{}, nil)
 				_ = v.addUnresolvedField("b", "test", nil,
 					&fieldRef{
 						tagName:     "data",
@@ -106,7 +106,7 @@ func TestBaseField_Inherit(t *testing.T) {
 			name: "Catch Other Some Inherit Some No Cache",
 
 			a: func() *Foo {
-				v := Init(&Foo{}, nil).(*Foo)
+				v := Init(&Foo{}, nil)
 				_ = v.addUnresolvedField("a", "test", nil,
 					&fieldRef{
 						tagName:     "data",
@@ -119,7 +119,7 @@ func TestBaseField_Inherit(t *testing.T) {
 				return v
 			}(),
 			b: func() *Foo {
-				v := Init(&Foo{}, nil).(*Foo)
+				v := Init(&Foo{}, nil)
 				_ = v.addUnresolvedField("b", "test", nil,
 					&fieldRef{
 						tagName:     "data",
@@ -139,16 +139,16 @@ func TestBaseField_Inherit(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			a := Init(test.a, nil).(*Foo)
-			b := Init(test.b, nil).(*Foo)
+			a := Init(test.a, nil)
+			b := Init(test.b, nil)
 
-			expectedUnresolvedFields := make(map[string]*unresolvedFieldSpec)
+			expectedUnresolvedFields := make(map[string]unresolvedFieldSpec)
 			if test.unresolvedNormalFieldsCount > 0 {
 				for k, v := range a.unresolvedNormalFields {
-					expectedUnresolvedFields[k] = &unresolvedFieldSpec{
+					expectedUnresolvedFields[k] = unresolvedFieldSpec{
 						ref:       v.ref.clone(reflect.Value{}).stripBase(),
 						rawData:   v.rawData,
-						renderers: append([]*rendererSpec{}, v.renderers...),
+						renderers: append([]rendererSpec{}, v.renderers...),
 					}
 				}
 			} else {
@@ -172,13 +172,14 @@ func TestBaseField_Inherit(t *testing.T) {
 
 			for k, v := range b.unresolvedNormalFields {
 				// reset for assertion
-				if _, ok := expectedUnresolvedFields[k]; ok {
-					expectedUnresolvedFields[k].rawData = v.rawData
+				if x, ok := expectedUnresolvedFields[k]; ok {
+					x.rawData = v.rawData
+					expectedUnresolvedFields[k] = x
 				} else {
-					expectedUnresolvedFields[k] = &unresolvedFieldSpec{
+					expectedUnresolvedFields[k] = unresolvedFieldSpec{
 						ref:       v.ref.clone(reflect.Value{}).stripBase(),
 						rawData:   v.rawData,
-						renderers: append([]*rendererSpec{}, v.renderers...),
+						renderers: append([]rendererSpec{}, v.renderers...),
 					}
 				}
 			}
@@ -197,7 +198,7 @@ func TestBaseField_Inherit_uninitialized(t *testing.T) {
 		BaseField
 	}
 
-	other := Init(&Other{}, nil).(*Other)
+	other := Init(&Other{}, nil)
 	assert.Error(t, bf.Inherit(&other.BaseField))
 	assert.Error(t, other.Inherit(bf))
 }

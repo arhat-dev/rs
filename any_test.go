@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"testing"
 
+	"arhat.dev/pkg/testhelper"
 	"github.com/stretchr/testify/assert"
 	"gopkg.in/yaml.v3"
 )
@@ -43,15 +44,18 @@ func TestAnyObject_NormalizedValue(t *testing.T) {
 	})
 
 	t.Run("map-not-set", func(t *testing.T) {
-		obj := &AnyObject{
-			mapData: &AnyObjectMap{
+		obj := AnyObject{
+			mapData: AnyObjectMap{
 				Data: nil,
 			},
+
+			kind: _mapData,
 		}
 		t.Run("normalized", func(t *testing.T) {
 			assert.Nil(t, obj.NormalizedValue())
 			assert.IsType(t, map[string]any{}, obj.NormalizedValue())
 		})
+
 		t.Run("raw", func(t *testing.T) {
 			assert.NotNil(t, obj.value())
 			assert.IsType(t, &AnyObjectMap{}, obj.value())
@@ -59,10 +63,12 @@ func TestAnyObject_NormalizedValue(t *testing.T) {
 	})
 
 	t.Run("map-not-nil", func(t *testing.T) {
-		obj := &AnyObject{
-			mapData: &AnyObjectMap{
+		obj := AnyObject{
+			mapData: AnyObjectMap{
 				Data: map[string]*AnyObject{},
 			},
+
+			kind: _mapData,
 		}
 		t.Run("normalized", func(t *testing.T) {
 			assert.NotNil(t, obj.NormalizedValue())
@@ -75,8 +81,10 @@ func TestAnyObject_NormalizedValue(t *testing.T) {
 	})
 
 	t.Run("slice-not-nil", func(t *testing.T) {
-		obj := &AnyObject{
-			sliceData: []*AnyObject{},
+		obj := AnyObject{
+			sliceData: []AnyObject{},
+
+			kind: _sliceData,
 		}
 
 		t.Run("normalized", func(t *testing.T) {
@@ -90,8 +98,10 @@ func TestAnyObject_NormalizedValue(t *testing.T) {
 	})
 
 	t.Run("scalar-not-nil", func(t *testing.T) {
-		obj := &AnyObject{
+		obj := AnyObject{
 			scalarData: "test",
+
+			kind: _scalarData,
 		}
 		t.Run("normalized", func(t *testing.T) {
 			assert.NotNil(t, obj.NormalizedValue())
@@ -115,9 +125,13 @@ func TestAnyObject_UnmarshalYAML(t *testing.T) {
 			name:  "map",
 			input: `foo: test`,
 			expected: &AnyObject{
-				mapData: &AnyObjectMap{
+				kind: _mapData,
+				mapData: AnyObjectMap{
 					Data: map[string]*AnyObject{
-						"foo": {scalarData: "test"},
+						"foo": {
+							scalarData: "test",
+							kind:       _scalarData,
+						},
 					},
 				},
 			},
@@ -126,9 +140,10 @@ func TestAnyObject_UnmarshalYAML(t *testing.T) {
 			name:  "seq",
 			input: `[test, test]`,
 			expected: &AnyObject{
-				sliceData: []*AnyObject{
-					{scalarData: "test"},
-					{scalarData: "test"},
+				kind: _sliceData,
+				sliceData: []AnyObject{
+					{scalarData: "test", kind: _scalarData},
+					{scalarData: "test", kind: _scalarData},
 				},
 			},
 		},
@@ -137,6 +152,7 @@ func TestAnyObject_UnmarshalYAML(t *testing.T) {
 			input: `test`,
 			expected: &AnyObject{
 				scalarData: "test",
+				kind:       _scalarData,
 			},
 		},
 		{
@@ -144,13 +160,14 @@ func TestAnyObject_UnmarshalYAML(t *testing.T) {
 			input: `!!binary dGVzdA==`,
 			expected: &AnyObject{
 				scalarData: "dGVzdA==",
+				kind:       _scalarData,
 			},
 		},
 	}
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			out := Init(&AnyObject{}, nil).(*AnyObject)
+			out := Init(&AnyObject{}, nil)
 			assert.NoError(t, yaml.Unmarshal([]byte(test.input), out))
 			unsetAnyObjectBaseField(out)
 
@@ -174,16 +191,18 @@ func TestAnyObject(t *testing.T) {
 			input: `foo: bar`,
 
 			expectedUnmarshaled: &AnyObject{
-				mapData: &AnyObjectMap{
+				kind: _mapData,
+				mapData: AnyObjectMap{
 					Data: map[string]*AnyObject{
-						"foo": {scalarData: "bar"},
+						"foo": {scalarData: "bar", kind: _scalarData},
 					},
 				},
 			},
 			expectedResolved: &AnyObject{
-				mapData: &AnyObjectMap{
+				kind: _mapData,
+				mapData: AnyObjectMap{
 					Data: map[string]*AnyObject{
-						"foo": {scalarData: "bar"},
+						"foo": {scalarData: "bar", kind: _scalarData},
 					},
 				},
 			},
@@ -196,15 +215,17 @@ func TestAnyObject(t *testing.T) {
 			input: `[foo, bar]`,
 
 			expectedUnmarshaled: &AnyObject{
-				sliceData: []*AnyObject{
-					{scalarData: "foo"},
-					{scalarData: "bar"},
+				kind: _sliceData,
+				sliceData: []AnyObject{
+					{scalarData: "foo", kind: _scalarData},
+					{scalarData: "bar", kind: _scalarData},
 				},
 			},
 			expectedResolved: &AnyObject{
-				sliceData: []*AnyObject{
-					{scalarData: "foo"},
-					{scalarData: "bar"},
+				kind: _sliceData,
+				sliceData: []AnyObject{
+					{scalarData: "foo", kind: _scalarData},
+					{scalarData: "bar", kind: _scalarData},
 				},
 			},
 			expectedEquivalent: []string{"foo", "bar"},
@@ -214,14 +235,16 @@ func TestAnyObject(t *testing.T) {
 			input: `foo@echo: bar`,
 
 			expectedUnmarshaled: &AnyObject{
-				mapData: &AnyObjectMap{
+				kind: _mapData,
+				mapData: AnyObjectMap{
 					Data: nil,
 				},
 			},
 			expectedResolved: &AnyObject{
-				mapData: &AnyObjectMap{
+				kind: _mapData,
+				mapData: AnyObjectMap{
 					Data: map[string]*AnyObject{
-						"foo": {scalarData: "bar"},
+						"foo": {scalarData: "bar", kind: _scalarData},
 					},
 				},
 			},
@@ -234,29 +257,43 @@ func TestAnyObject(t *testing.T) {
 			input: `[{foo@echo: [a,b]}, {bar@echo: [c,d]}]`,
 
 			expectedUnmarshaled: &AnyObject{
-				sliceData: []*AnyObject{
-					{mapData: &AnyObjectMap{Data: nil}},
-					{mapData: &AnyObjectMap{Data: nil}},
+				kind: _sliceData,
+				sliceData: []AnyObject{
+					{mapData: AnyObjectMap{Data: nil}, kind: _mapData},
+					{mapData: AnyObjectMap{Data: nil}, kind: _mapData},
 				},
 			},
 			expectedResolved: &AnyObject{
-				sliceData: []*AnyObject{
-					{mapData: &AnyObjectMap{Data: map[string]*AnyObject{
-						"foo": {
-							sliceData: []*AnyObject{
-								{scalarData: "a"},
-								{scalarData: "b"},
+				kind: _sliceData,
+				sliceData: []AnyObject{
+					{
+						kind: _mapData,
+						mapData: AnyObjectMap{
+							Data: map[string]*AnyObject{
+								"foo": {
+									kind: _sliceData,
+									sliceData: []AnyObject{
+										{scalarData: "a", kind: _scalarData},
+										{scalarData: "b", kind: _scalarData},
+									},
+								},
 							},
 						},
-					}}},
-					{mapData: &AnyObjectMap{Data: map[string]*AnyObject{
-						"bar": {
-							sliceData: []*AnyObject{
-								{scalarData: "c"},
-								{scalarData: "d"},
+					},
+					{
+						kind: _mapData,
+						mapData: AnyObjectMap{
+							Data: map[string]*AnyObject{
+								"bar": {
+									kind: _sliceData,
+									sliceData: []AnyObject{
+										{scalarData: "c", kind: _scalarData},
+										{scalarData: "d", kind: _scalarData},
+									},
+								},
 							},
 						},
-					}}},
+					},
 				},
 			},
 			expectedEquivalent: []any{
@@ -273,20 +310,25 @@ func TestAnyObject(t *testing.T) {
 			input: `foo@echo!: { value: { bar: woo }, merge: [{ value: { woo: bar } }, { value: { foo: woo } }] }`,
 
 			expectedUnmarshaled: &AnyObject{
-				mapData: &AnyObjectMap{
+				kind: _mapData,
+				mapData: AnyObjectMap{
 					Data: nil,
 				},
 			},
 			expectedResolved: &AnyObject{
-				mapData: &AnyObjectMap{
+				kind: _mapData,
+				mapData: AnyObjectMap{
 					Data: map[string]*AnyObject{
-						"foo": {mapData: &AnyObjectMap{
-							Data: map[string]*AnyObject{
-								"bar": {scalarData: "woo"},
-								"woo": {scalarData: "bar"},
-								"foo": {scalarData: "woo"},
+						"foo": {
+							kind: _mapData,
+							mapData: AnyObjectMap{
+								Data: map[string]*AnyObject{
+									"bar": {scalarData: "woo", kind: _scalarData},
+									"woo": {scalarData: "bar", kind: _scalarData},
+									"foo": {scalarData: "woo", kind: _scalarData},
+								},
 							},
-						}},
+						},
 					},
 				},
 			},
@@ -303,19 +345,24 @@ func TestAnyObject(t *testing.T) {
 			input: `foo@echo!: { merge: [{ value: { woo: bar } }, { value: { foo: woo } }] }`,
 
 			expectedUnmarshaled: &AnyObject{
-				mapData: &AnyObjectMap{
+				kind: _mapData,
+				mapData: AnyObjectMap{
 					Data: nil,
 				},
 			},
 			expectedResolved: &AnyObject{
-				mapData: &AnyObjectMap{
+				kind: _mapData,
+				mapData: AnyObjectMap{
 					Data: map[string]*AnyObject{
-						"foo": {mapData: &AnyObjectMap{
-							Data: map[string]*AnyObject{
-								"woo": {scalarData: "bar"},
-								"foo": {scalarData: "woo"},
+						"foo": {
+							kind: _mapData,
+							mapData: AnyObjectMap{
+								Data: map[string]*AnyObject{
+									"woo": {scalarData: "bar", kind: _scalarData},
+									"foo": {scalarData: "woo", kind: _scalarData},
+								},
 							},
-						}},
+						},
 					},
 				},
 			},
@@ -378,16 +425,39 @@ func unsetAnyObjectBaseField(obj *AnyObject) {
 	}
 
 	obj.BaseField = BaseField{}
-	if obj.mapData != nil {
+	switch obj.kind {
+	case _mapData:
 		obj.mapData.BaseField = BaseField{}
 		for _, v := range obj.mapData.Data {
 			unsetAnyObjectBaseField(v)
 		}
-	}
-
-	if obj.sliceData != nil {
-		for _, v := range obj.sliceData {
-			unsetAnyObjectBaseField(v)
+	case _sliceData:
+		for i := range obj.sliceData {
+			unsetAnyObjectBaseField(&obj.sliceData[i])
 		}
 	}
+}
+
+func testAnyObjectUnmarshalAndResolveByYamlSpecs(t *testing.T, specDirPath string) {
+	testhelper.TestFixtures(t, specDirPath,
+		func() any { return InitAny(&AnyObject{}, nil) },
+		func() any { var out any; return &out },
+		func(t *testing.T, spec, exp any) {
+			testSrc := spec.(*AnyObject)
+			exp = *exp.(*any)
+
+			assert.NoError(t,
+				testSrc.ResolveFields(testRenderingHandler{}, -1),
+				"failed to resolve test source",
+			)
+
+			ret, err := yaml.Marshal(testSrc)
+			assert.NoError(t, err, "failed to marshal resolved data")
+
+			var actual any
+			assert.NoError(t, yaml.Unmarshal(ret, &actual), "failed to unmarshal resolved data")
+
+			assert.EqualValues(t, exp, actual)
+		},
+	)
 }

@@ -57,7 +57,7 @@ func runMarshalTest(t *testing.T, tests []marshalTestSpec) {
 			expected := string(expectedBytes)
 
 			t.Run("Direct Set", func(t *testing.T) {
-				ret, err := yaml.Marshal(initInterface(test.data, nil))
+				ret, err := yaml.Marshal(InitAny(test.data, nil))
 				assert.NoError(t, err)
 
 				t.Log(string(ret))
@@ -66,7 +66,7 @@ func runMarshalTest(t *testing.T, tests []marshalTestSpec) {
 
 			newEmptyValue := func() Field {
 				return &dataWrapper{
-					data: initInterface(
+					data: InitAny(
 						reflect.New(reflect.TypeOf(test.data).Elem()).Interface(),
 						nil,
 					),
@@ -513,8 +513,8 @@ func TestBaseField_MarshalYAML(t *testing.T) {
 
 				Data map[string]*FooWithBaseField `rs:"other"`
 			}{Data: map[string]*FooWithBaseField{
-				"a": Init(&FooWithBaseField{Foo: "b"}, nil).(*FooWithBaseField),
-				"c": Init(&FooWithBaseField{Foo: "d"}, nil).(*FooWithBaseField),
+				"a": Init(&FooWithBaseField{Foo: "b"}, nil),
+				"c": Init(&FooWithBaseField{Foo: "d"}, nil),
 			}},
 
 			inputNoRS:   "{ a: {foo: b}, c: {foo: d}}",

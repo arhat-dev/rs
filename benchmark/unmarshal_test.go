@@ -70,7 +70,7 @@ func BenchmarkUnmarshal_typed(b *testing.B) {
 	b.Run("rs", func(b *testing.B) {
 
 		b.Run("no-suffix", func(b *testing.B) {
-			f := rs.Init(&FieldFoo{}, &rs.Options{AllowUnknownFields: true}).(*FieldFoo)
+			f := rs.Init(&FieldFoo{}, &rs.Options{AllowUnknownFields: true})
 
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
@@ -86,8 +86,7 @@ func BenchmarkUnmarshal_typed(b *testing.B) {
 		})
 
 		b.Run("all-suffix", func(b *testing.B) {
-			f := rs.Init(&FieldFoo{}, &rs.Options{AllowUnknownFields: true}).(*FieldFoo)
-
+			f := rs.Init(&FieldFoo{}, &rs.Options{AllowUnknownFields: true})
 			b.ResetTimer()
 			for i := 0; i < b.N; i++ {
 				if err := yaml.Unmarshal(srcAllRS, f); err != nil {
