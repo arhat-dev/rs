@@ -3,6 +3,7 @@ module arhat.dev/rs/benchmark
 go 1.18
 
 require (
+	arhat.dev/pkg v0.9.1-0.20220527160521-12b7b771a58b
 	arhat.dev/rs v0.9.0
 	github.com/goccy/go-yaml v1.9.5
 	github.com/stretchr/testify v1.7.1
@@ -10,7 +11,6 @@ require (
 )
 
 require (
-	arhat.dev/pkg v0.9.1-0.20220527160521-12b7b771a58b // indirect
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/evanphx/json-patch/v5 v5.6.0 // indirect
 	github.com/fatih/color v1.10.0 // indirect
