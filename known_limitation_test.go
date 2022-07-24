@@ -23,7 +23,7 @@ func TestLimitation_BuiltInMapKeyNotResolved(t *testing.T) {
 	}
 
 	yamlData := `{ bar_map: { bar_key@my-renderer: { data: my-renderer-value } } }`
-	f := rs.Init(&Foo{}, nil)
+	f := rs.Init(&Foo{}, nil).(*Foo)
 	assert.NoError(t, yaml.Unmarshal([]byte(yamlData), f))
 	assert.NoError(t, f.ResolveFields(
 		rs.RenderingHandleFunc(
@@ -49,7 +49,7 @@ func TestLimitation_BuiltInMapKeyNotResolved(t *testing.T) {
 			BarMap BarMap `yaml:"bar_map"`
 		}
 
-		f := rs.Init(&Foo{}, nil)
+		f := rs.Init(&Foo{}, nil).(*Foo)
 		assert.NoError(t, yaml.Unmarshal([]byte(yamlData), f))
 		assert.NoError(t, f.ResolveFields(
 			rs.RenderingHandleFunc(

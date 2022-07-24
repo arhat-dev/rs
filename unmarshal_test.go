@@ -464,7 +464,7 @@ delegated_array@echo|echo|echo: |-
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
 			t.Run("unmarshal", func(t *testing.T) {
-				out := Init(&Foo{}, nil)
+				out := Init(&Foo{}, nil).(*Foo)
 				assert.EqualValues(t, 1, out._initialized)
 
 				err := yaml.Unmarshal([]byte(test.yaml), out)
@@ -497,7 +497,7 @@ delegated_array@echo|echo|echo: |-
 			}
 
 			t.Run("resolve", func(t *testing.T) {
-				out := Init(&Foo{}, nil)
+				out := Init(&Foo{}, nil).(*Foo)
 				assert.EqualValues(t, 1, out._initialized)
 
 				if !assert.NoError(t, yaml.Unmarshal([]byte(test.yaml), out)) {
@@ -717,7 +717,7 @@ func TestBaseField_UnmarshalYAML_Mixed_CatchOther(t *testing.T) {
 		Data map[string][]string `rs:"other"`
 	}
 
-	a := Init(&Foo{}, nil)
+	a := Init(&Foo{}, nil).(*Foo)
 	assert.NoError(t, yaml.Unmarshal([]byte(`{ a: [a], b@echo: [b], c: [c], b@echo: [x] }`), a))
 	assert.EqualValues(t, map[string][]string{
 		"a": {"a"},
@@ -754,13 +754,13 @@ func TestBaseField_UnmarshalYAML_Init(t *testing.T) {
 			Foo Inner `yaml:"foo"`
 		}
 
-		out := Init(&T{}, nil)
+		out := Init(&T{}, nil).(*T)
 
 		assert.NoError(t, yaml.Unmarshal([]byte(`foo: { foo: bar }`), out))
 		assert.Equal(t, "bar", out.Foo.Foo)
 		assert.EqualValues(t, 1, out.Foo.BaseField._initialized)
 
-		out = Init(&T{}, nil)
+		out = Init(&T{}, nil).(*T)
 
 		assert.NoError(t, yaml.Unmarshal([]byte(`foo@echo: { foo: rendered-bar }`), out))
 		assert.Equal(t, "", out.Foo.Foo)
@@ -780,13 +780,13 @@ func TestBaseField_UnmarshalYAML_Init(t *testing.T) {
 			Foo Inner `yaml:",inline"`
 		}
 
-		out := Init(&T{}, nil)
+		out := Init(&T{}, nil).(*T)
 
 		assert.NoError(t, yaml.Unmarshal([]byte(`foo: bar`), out))
 		assert.Equal(t, "bar", out.Foo.Foo)
 		assert.EqualValues(t, 1, out.Foo.BaseField._initialized)
 
-		out = Init(&T{}, nil)
+		out = Init(&T{}, nil).(*T)
 
 		assert.NoError(t, yaml.Unmarshal([]byte(`foo@echo: { foo: rendered-bar }`), out))
 		assert.Equal(t, "", out.Foo.Foo)

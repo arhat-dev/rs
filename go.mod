@@ -3,10 +3,10 @@ module arhat.dev/rs
 go 1.18
 
 require (
-	arhat.dev/pkg v0.9.1-0.20220527160521-12b7b771a58b
+	arhat.dev/pkg v0.10.0
 	github.com/evanphx/json-patch/v5 v5.6.0
-	github.com/itchyny/gojq v0.12.7
-	github.com/stretchr/testify v1.7.1
+	github.com/itchyny/gojq v0.12.8
+	github.com/stretchr/testify v1.8.0
 	gopkg.in/yaml.v3 v3.0.1
 )
 

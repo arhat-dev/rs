@@ -42,7 +42,7 @@ func TestBaseField_Inherit(t *testing.T) {
 
 			a: &Foo{},
 			b: func() *Foo {
-				v := Init(&Foo{}, nil)
+				v := Init(&Foo{}, nil).(*Foo)
 				_ = v.addUnresolvedField(
 					&fieldRef{
 						tagName:    "data",
@@ -61,7 +61,7 @@ func TestBaseField_Inherit(t *testing.T) {
 			name: "Some Inherit Some",
 
 			a: func() *Foo {
-				v := Init(&Foo{}, nil)
+				v := Init(&Foo{}, nil).(*Foo)
 				_ = v.addUnresolvedField(
 					&fieldRef{
 						tagName:    "data",
@@ -74,7 +74,7 @@ func TestBaseField_Inherit(t *testing.T) {
 				return v
 			}(),
 			b: func() *Foo {
-				v := Init(&Foo{}, nil)
+				v := Init(&Foo{}, nil).(*Foo)
 				_ = v.addUnresolvedField(
 					&fieldRef{
 						tagName:    "data",
@@ -94,7 +94,7 @@ func TestBaseField_Inherit(t *testing.T) {
 
 			a: &Foo{},
 			b: func() *Foo {
-				v := Init(&Foo{}, nil)
+				v := Init(&Foo{}, nil).(*Foo)
 				_ = v.addUnresolvedField(
 					&fieldRef{
 						tagName:     "data",
@@ -115,7 +115,7 @@ func TestBaseField_Inherit(t *testing.T) {
 			name: "Catch Other Some Inherit Some No Cache",
 
 			a: func() *Foo {
-				v := Init(&Foo{}, nil)
+				v := Init(&Foo{}, nil).(*Foo)
 				_ = v.addUnresolvedField(
 					&fieldRef{
 						tagName:     "data",
@@ -129,7 +129,7 @@ func TestBaseField_Inherit(t *testing.T) {
 				return v
 			}(),
 			b: func() *Foo {
-				v := Init(&Foo{}, nil)
+				v := Init(&Foo{}, nil).(*Foo)
 				_ = v.addUnresolvedField(
 					&fieldRef{
 						tagName:     "data",
@@ -150,8 +150,8 @@ func TestBaseField_Inherit(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			a := Init(test.a, nil)
-			b := Init(test.b, nil)
+			a := Init(test.a, nil).(*Foo)
+			b := Init(test.b, nil).(*Foo)
 
 			expectedUnresolvedFields := make(map[string]unresolvedFieldSpec)
 			if test.unresolvedNormalFieldsCount > 0 {
@@ -211,7 +211,7 @@ func TestBaseField_Inherit_uninitialized(t *testing.T) {
 		BaseField
 	}
 
-	other := Init(&Other{}, nil)
+	other := Init(&Other{}, nil).(*Other)
 	assert.Error(t, bf.Inherit(&other.BaseField))
 	assert.Error(t, other.Inherit(bf))
 }

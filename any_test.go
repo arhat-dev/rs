@@ -167,7 +167,7 @@ func TestAnyObject_UnmarshalYAML(t *testing.T) {
 
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			out := Init(&AnyObject{}, nil)
+			out := Init(&AnyObject{}, nil).(*AnyObject)
 			assert.NoError(t, yaml.Unmarshal([]byte(test.input), out))
 			unsetAnyObjectBaseField(out)
 
@@ -440,7 +440,7 @@ func unsetAnyObjectBaseField(obj *AnyObject) {
 
 func testAnyObjectUnmarshalAndResolveByYamlSpecs(t *testing.T, specDirPath string) {
 	testhelper.TestFixtures(t, specDirPath,
-		func() any { return InitAny(&AnyObject{}, nil) },
+		func() any { return Init(&AnyObject{}, nil) },
 		func() any { var out any; return &out },
 		func(t *testing.T, spec, exp any) {
 			testSrc := spec.(*AnyObject)

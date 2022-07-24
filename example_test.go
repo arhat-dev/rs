@@ -18,7 +18,7 @@ func ExampleBaseField_ResolveFields() {
 	// required:
 	// initialize you data object
 	// before marshaling/unmarshaling/resolving
-	s := rs.Init(&MyStruct{}, nil)
+	s := rs.Init(&MyStruct{}, nil).(*MyStruct)
 
 	// unmarshal yaml data using rendering suffix
 	err := yaml.Unmarshal([]byte(`{ my_value@my-renderer: 123 }`), s)
