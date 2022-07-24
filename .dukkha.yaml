@@ -107,7 +107,7 @@ golang:test:
     - idle@tlang: mkdir "-p" env.PROFILE_DIR
   cgo:
     enabled: true
-  race: true
+  race@tlang: ne host.kernel "windows"
   profile:
     output_dir@tlang: env.PROFILE_DIR
     coverage:
